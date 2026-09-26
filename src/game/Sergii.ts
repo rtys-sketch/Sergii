@@ -253,6 +253,7 @@ export class Sergii {
   setShield(on: boolean) {
     this.shieldOn = on;
     this.lid.setVisible(on);
+    if (!on) this.armL.target = -0.12;
     if (on) {
       this.lid.setScale(0);
       this.scene.tweens.add({ targets: this.lid, scale: this.stage.K / this.lidTexScale, duration: 260, ease: 'Back.Out' });
