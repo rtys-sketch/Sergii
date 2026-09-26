@@ -72,9 +72,15 @@ export class Sergii {
   tintTarget = 0; // 0..1 redness
   private tint = 0;
   private hitFlash = 0;
+  private smileTime = 0;
+  private angerTime = 0;
+  private happyAlpha = 0;
+  private angryAlpha = 0;
 
   body: Phaser.GameObjects.Image;
   head: Phaser.GameObjects.Image;
+  headHappy: Phaser.GameObjects.Image;
+  headAngry: Phaser.GameObjects.Image;
   headShadow: Phaser.GameObjects.Image;
   collar: Phaser.GameObjects.Image;
   armLImg: Phaser.GameObjects.Image;
@@ -106,6 +112,8 @@ export class Sergii {
     this.headShadow.setOrigin(PIVOT_X / HEAD_W, PIVOT_Y / HEAD_H);
     this.head = scene.add.image(0, 0, 'sergii-head').setDepth(21);
     this.head.setOrigin(PIVOT_X / HEAD_W, PIVOT_Y / HEAD_H);
+    this.headHappy = scene.add.image(0, 0, 'sergii-head-happy').setDepth(21.05).setOrigin(PIVOT_X / HEAD_W, PIVOT_Y / HEAD_H).setAlpha(0);
+    this.headAngry = scene.add.image(0, 0, 'sergii-head-angry').setDepth(21.1).setOrigin(PIVOT_X / HEAD_W, PIVOT_Y / HEAD_H).setAlpha(0);
     this.collar = scene.add.image(0, 0, 'collar').setDepth(21.5).setOrigin(0.5, 8 / 70);
     this.armLImg = scene.add.image(0, 0, 'arm').setDepth(22).setOrigin(ARM.px / ARM.w, ARM.py / ARM.h).setFlipX(true);
     this.armRImg = scene.add.image(0, 0, 'arm').setDepth(22).setOrigin(ARM.px / ARM.w, ARM.py / ARM.h);
@@ -174,7 +182,18 @@ export class Sergii {
   }
 
   // ------------------------------------------------------------ reactions
+  smileFor(seconds = 1.8) {
+    this.smileTime = Math.max(this.smileTime, seconds);
+    this.angerTime = 0;
+  }
+
+  angryFor(seconds = 1.5) {
+    this.angerTime = Math.max(this.angerTime, seconds);
+    this.smileTime = 0;
+  }
+
   punch(dirX: number, strength: number, head: boolean) {
+    this.angryFor();
     const s = strength;
     if (head) {
       this.headY.kick(-420 * s);
@@ -280,6 +299,8 @@ export class Sergii {
   update(dt: number) {
     this.t += dt;
     const t = this.t;
+    this.smileTime = Math.max(0, this.smileTime - dt);
+    this.angerTime = Math.max(0, this.angerTime - dt);
     for (const s of [this.y, this.lean, this.headX, this.headY, this.headRot, this.headScale, this.squash, this.armR, this.armL, this.armRS, this.scaleAll]) s.step(dt);
 
     const KK = this.stage.K;
@@ -316,7 +337,19 @@ export class Sergii {
     this.headPos.rot = hr;
     this.headPos.s = hs;
     this.head.setPosition(p.px(hx), p.py(hy)).setRotation(hr).setScale(hs * KK * (1 + sq), hs * KK * (1 - sq));
+    for (const face of [this.headHappy, this.headAngry]) {
+      face.setPosition(this.head.x, this.head.y).setRotation(hr).setScale(this.head.scaleX, this.head.scaleY);
+    }
     this.headShadow.setPosition(p.px(hx + 6), p.py(hy + 10)).setRotation(hr).setScale(hs * KK * 1.01);
+
+    // The photo changes expression with the action. A brief victory smile can
+    // interrupt normal irritation, while rage always keeps the angry face.
+    const angry = this.rage || (this.smileTime <= 0 && (this.angerTime > 0 || this.moodLevel >= 2));
+    const happy = !angry && (this.smileTime > 0 || this.moodLevel === 0);
+    this.happyAlpha = lerp(this.happyAlpha, happy ? 1 : 0, Math.min(1, dt * 9));
+    this.angryAlpha = lerp(this.angryAlpha, angry ? 1 : 0, Math.min(1, dt * 9));
+    this.headHappy.setAlpha(this.happyAlpha);
+    this.headAngry.setAlpha(this.angryAlpha);
 
     // collar sits on the shirt
     const col = this.rot(0, -10 * sc, leanA);
@@ -413,7 +446,10 @@ export class Sergii {
     const rr = 255;
     const gg = Math.round(lerp(g, 200, flash * 0.5));
     const bb = Math.round(lerp(b, 190, flash * 0.5));
-    this.head.setTint(Phaser.Display.Color.GetColor(rr, gg, bb));
+    const faceTint = Phaser.Display.Color.GetColor(rr, gg, bb);
+    this.head.setTint(faceTint);
+    this.headHappy.setTint(faceTint);
+    this.headAngry.setTint(faceTint);
 
     // decals follow the head / body
     for (const d of this.decals) {

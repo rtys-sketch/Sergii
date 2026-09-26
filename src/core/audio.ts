@@ -297,6 +297,14 @@ class AudioEngine {
     this.tone('sawtooth', 180, 520, t, 0.35, 0.05, this.sfxBus, 0.25);
   }
 
+  belly() {
+    if (!this.ok('belly', 0.3)) return;
+    const t = this.now;
+    this.tone('sine', 180, 42, t, 0.55, 0.85);
+    this.tone('sawtooth', 92, 38, t + 0.03, 0.4, 0.12);
+    this.noise(t, 0.45, 0.35, 'lowpass', 800, 120, 0.8);
+  }
+
   dodge() {
     if (!this.ok('dodge', 0.1)) return;
     const t = this.now;
