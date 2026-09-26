@@ -402,7 +402,84 @@ function pie(ctx: Ctx) {
   ctx.fill();
 }
 
-const ITEM_PAINTERS: Record<ItemKind, Painter> = { tomato, poop, can, egg, slipper, tp, fish, pie, gold };
+function wrench(ctx: Ctx) {
+  ctx.save();
+  ctx.translate(50, 50);
+  ctx.rotate(-Math.PI / 4);
+  const steel = linear(ctx, -8, 0, 8, 0, [[0, '#8e98a3'], [0.45, '#f4f7fa'], [1, '#76808b']]);
+  roundRect(ctx, -7, -30, 14, 60, 6);
+  fillOutlined(ctx, steel, 4);
+  // open jaw (top)
+  ctx.beginPath();
+  ctx.arc(0, -36, 15, 0, Math.PI * 2);
+  fillOutlined(ctx, radial(ctx, -4, -40, 20, [[0, '#ffffff'], [1, '#8a939e']]), 4);
+  ctx.beginPath();
+  ctx.moveTo(-6, -54);
+  ctx.lineTo(-5, -38);
+  ctx.lineTo(5, -38);
+  ctx.lineTo(6, -54);
+  ctx.closePath();
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.fill();
+  ctx.globalCompositeOperation = 'source-over';
+  // ring end (bottom)
+  ctx.beginPath();
+  ctx.arc(0, 36, 14, 0, Math.PI * 2);
+  fillOutlined(ctx, radial(ctx, -4, 32, 20, [[0, '#ffffff'], [1, '#8a939e']]), 4);
+  ctx.beginPath();
+  ctx.arc(0, 36, 6.5, 0, Math.PI * 2);
+  ctx.fillStyle = OUTLINE;
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.fillRect(-3, -24, 2.5, 48);
+  ctx.restore();
+}
+
+function fridge(ctx: Ctx) {
+  // retro fridge with magnets
+  roundRect(ctx, 24, 5, 52, 88, 12);
+  fillOutlined(ctx, linear(ctx, 24, 0, 76, 0, [[0, '#d9dfe6'], [0.3, '#ffffff'], [0.75, '#eef2f6'], [1, '#b9c2cc']]), 4);
+  ctx.strokeStyle = 'rgba(40,50,60,0.6)';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(26, 36);
+  ctx.lineTo(74, 36);
+  ctx.stroke();
+  // chrome handles
+  for (const [y0, y1] of [
+    [14, 30],
+    [44, 66],
+  ]) {
+    roundRect(ctx, 66, y0, 5, y1 - y0, 2.5);
+    fillOutlined(ctx, linear(ctx, 66, 0, 71, 0, [[0, '#ffffff'], [1, '#8a939e']]), 2);
+  }
+  // magnets
+  for (const [x, y, c] of [
+    [34, 48, '#e8323c'],
+    [44, 58, '#ffc93c'],
+    [36, 70, '#2f7fe0'],
+  ] as const) {
+    circle(ctx, x, y, 4);
+    fillOutlined(ctx, c, 1.8);
+  }
+  roundRect(ctx, 30, 14, 26, 14, 2);
+  ctx.fillStyle = '#fff6d6';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.fillStyle = '#c0392b';
+  ctx.font = '900 5px Unbounded, Rubik, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('ПИВО', 43, 23);
+  ctx.fillStyle = OUTLINE;
+  ctx.fillRect(30, 91, 8, 5);
+  ctx.fillRect(62, 91, 8, 5);
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  ctx.fillRect(29, 9, 3, 80);
+}
+
+const ITEM_PAINTERS: Record<ItemKind, Painter> = { tomato, poop, can, egg, slipper, tp, fish, pie, gold, wrench, fridge };
 
 // ------------------------------------------------------------------ splats
 interface SplatStyle {
@@ -824,6 +901,74 @@ function ui(scene: Phaser.Scene, S: number) {
     ctx.lineTo(74, 44);
     ctx.stroke();
     ctx.setLineDash([]);
+  });
+  add(scene, 'van', 420, 210, S * 0.8, (ctx) => {
+    // delivery van «РОЗВОЗКА», side view facing right
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ellipse(ctx, 214, 196, 196, 12);
+    ctx.fill();
+    // cargo box
+    roundRect(ctx, 14, 30, 270, 138, 14);
+    fillOutlined(ctx, linear(ctx, 0, 30, 0, 168, [[0, '#ffffff'], [1, '#d7dde4']]), 5);
+    // cab
+    ctx.beginPath();
+    ctx.moveTo(284, 62);
+    ctx.lineTo(346, 62);
+    ctx.quadraticCurveTo(372, 64, 390, 112);
+    ctx.lineTo(404, 124);
+    ctx.quadraticCurveTo(410, 168, 396, 168);
+    ctx.lineTo(284, 168);
+    ctx.closePath();
+    fillOutlined(ctx, linear(ctx, 0, 62, 0, 168, [[0, '#ffffff'], [1, '#d0d7df']]), 5);
+    // windshield + driver
+    ctx.beginPath();
+    ctx.moveTo(300, 74);
+    ctx.lineTo(342, 74);
+    ctx.quadraticCurveTo(360, 78, 374, 112);
+    ctx.lineTo(300, 112);
+    ctx.closePath();
+    fillOutlined(ctx, linear(ctx, 300, 74, 374, 112, [[0, '#6fb6e6'], [1, '#2c6f9e']]), 3);
+    circle(ctx, 326, 96, 11);
+    ctx.fillStyle = 'rgba(20,20,30,0.75)';
+    ctx.fill();
+    // stripe + lettering
+    ctx.fillStyle = '#2f7fe0';
+    ctx.fillRect(16, 120, 268, 18);
+    ctx.fillRect(284, 128, 118, 10);
+    ctx.fillStyle = '#e8323c';
+    ctx.fillRect(16, 138, 268, 6);
+    ctx.fillStyle = '#1a2a4a';
+    ctx.font = '900 34px Unbounded, Rubik, Arial Black, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('РОЗВОЗКА', 150, 82);
+    ctx.font = '800 13px Rubik, Arial, sans-serif';
+    ctx.fillText('ШВИДКО · ДЕШЕВО · ПІД ЗАМОВЛЕННЯ', 150, 108);
+    // headlight + bumper
+    roundRect(ctx, 392, 132, 12, 12, 4);
+    ctx.fillStyle = '#ffe79a';
+    ctx.fill();
+    roundRect(ctx, 280, 162, 130, 10, 4);
+    ctx.fillStyle = '#4a5360';
+    ctx.fill();
+    // wheels
+    for (const x of [86, 330]) {
+      circle(ctx, x, 170, 26);
+      fillOutlined(ctx, '#1d1f24', 4);
+      circle(ctx, x, 170, 11);
+      ctx.fillStyle = '#9aa3ad';
+      ctx.fill();
+    }
+  });
+  add(scene, 'phone', 40, 76, S, (ctx) => {
+    roundRect(ctx, 3, 3, 34, 70, 8);
+    fillOutlined(ctx, '#15171c', 3);
+    roundRect(ctx, 7, 10, 26, 52, 4);
+    ctx.fillStyle = linear(ctx, 0, 10, 0, 62, [[0, '#3fd07a'], [1, '#1e8a4c']]);
+    ctx.fill();
+    circle(ctx, 20, 36, 7);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
   });
   add(scene, 'print', 120, 200, S, (ctx) => {
     // slipper sole print on the screen
@@ -1383,7 +1528,7 @@ function sign(ctx: Ctx) {
   ctx.restore();
 }
 
-function icon(ctx: Ctx, kind: 'gear' | 'trophy' | 'help' | 'back' | 'crown' | 'shades') {
+function icon(ctx: Ctx, kind: 'gear' | 'trophy' | 'help' | 'back' | 'crown') {
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   if (kind === 'gear') {
@@ -1469,32 +1614,6 @@ function icon(ctx: Ctx, kind: 'gear' | 'trophy' | 'help' | 'back' | 'crown' | 's
       circle(ctx, x, y, 6);
       fillOutlined(ctx, '#fff3a0', 3, '#3a2600');
     }
-  } else if (kind === 'shades') {
-    ctx.fillStyle = '#0b0b10';
-    ctx.beginPath();
-    ctx.moveTo(4, 30);
-    ctx.lineTo(96, 30);
-    ctx.lineTo(96, 38);
-    ctx.lineTo(90, 38);
-    ctx.bezierCurveTo(88, 66, 60, 66, 56, 40);
-    ctx.lineTo(44, 40);
-    ctx.bezierCurveTo(40, 66, 12, 66, 10, 38);
-    ctx.lineTo(4, 38);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = 'rgba(120,170,255,0.5)';
-    ctx.beginPath();
-    ctx.moveTo(16, 38);
-    ctx.lineTo(30, 38);
-    ctx.lineTo(20, 52);
-    ctx.closePath();
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(62, 38);
-    ctx.lineTo(76, 38);
-    ctx.lineTo(66, 52);
-    ctx.closePath();
-    ctx.fill();
   }
 }
 
@@ -1523,14 +1642,16 @@ export function buildTextures(scene: Phaser.Scene) {
   add(scene, 'crowd_b', 460, 330, S * 0.55, (ctx) => crowdGroup(ctx, 9, 5, 460, 330, 80));
   add(scene, 'crowd_c', 900, 300, S * 0.5, (ctx) => crowdGroup(ctx, 13, 11, 900, 300, 50));
   add(scene, 'sign', 310, 124, S, sign);
-  for (const k of ['gear', 'trophy', 'help', 'back', 'crown', 'shades'] as const) add(scene, 'ic_' + k, 100, 100, S, (ctx) => icon(ctx, k));
+  for (const k of ['gear', 'trophy', 'help', 'back', 'crown'] as const) add(scene, 'ic_' + k, 100, 100, S, (ctx) => icon(ctx, k));
 }
 
 /** Round-select thumbnails cut from the real photo (rounded, with per-round mood overlays). */
 export function buildThumbs(scene: Phaser.Scene) {
-  const src = scene.textures.get('sergii-head').getSourceImage() as HTMLImageElement;
+  const face = (k: string) => scene.textures.get(scene.textures.exists(k) ? k : 'sergii-head').getSourceImage() as HTMLImageElement;
   const S = L.TS;
   const make = (key: string, mood: number) => {
+    // calm → smug → plain → angry: the real photo expressions, never sunglasses
+    const src = face(mood <= 1 ? 'sergii-head-happy' : mood >= 4 ? 'sergii-head-angry' : 'sergii-head');
     if (scene.textures.exists(key)) return;
     const w = 150;
     const h = 130;
@@ -1547,13 +1668,6 @@ export function buildThumbs(scene: Phaser.Scene) {
     if (mood >= 5) {
       ctx.fillStyle = 'rgba(255,40,30,0.35)';
       ctx.fillRect(0, 0, w, h);
-    }
-    if (mood === 4 || mood === 6) {
-      ctx.save();
-      ctx.translate(18, 18);
-      ctx.scale(1.15, 1.15);
-      icon(ctx, 'shades');
-      ctx.restore();
     }
     if (mood >= 3 && mood !== 6) {
       ctx.save();

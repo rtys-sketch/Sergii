@@ -477,6 +477,39 @@ class AudioEngine {
     this.tone('square', 1200, 1200, this.now, 0.03, 0.05);
   }
 
+  /** Delivery van horn: two detuned square tones, «бі-біп». */
+  honk() {
+    if (!this.ok('honk', 0.3)) return;
+    const t = this.now;
+    for (const [dt, d] of [
+      [0, 0.12],
+      [0.18, 0.26],
+    ]) {
+      this.tone('square', 392, 392, t + dt, d, 0.1, this.sfxBus, 0.01);
+      this.tone('square', 494, 494, t + dt, d, 0.08, this.sfxBus, 0.01);
+    }
+  }
+
+  /** Phone ringtone: fast trill, three bursts. */
+  ring() {
+    if (!this.ok('ring', 0.5)) return;
+    const t = this.now;
+    for (let b = 0; b < 3; b++) {
+      for (let i = 0; i < 8; i++) {
+        const tt = t + b * 0.55 + i * 0.045;
+        this.tone('sine', i % 2 ? 1320 : 1760, i % 2 ? 1320 : 1760, tt, 0.04, 0.07);
+      }
+    }
+  }
+
+  /** Crowd «О-о-о!»: formant-filtered noise swell. */
+  cheer() {
+    if (!this.ok('cheer', 0.9)) return;
+    const t = this.now;
+    this.noise(t, 0.7, 0.16, 'bandpass', 700, 950, 2.5, this.sfxBus, 0.12);
+    this.noise(t + 0.02, 0.6, 0.1, 'bandpass', 1200, 1500, 3, this.sfxBus, 0.12);
+  }
+
   // ---------- music ----------
   startMusic(track: Track) {
     this.wantTrack = track;

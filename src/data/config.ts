@@ -1,4 +1,4 @@
-export type ItemKind = 'tomato' | 'poop' | 'can' | 'egg' | 'slipper' | 'tp' | 'fish' | 'pie' | 'gold';
+export type ItemKind = 'tomato' | 'poop' | 'can' | 'egg' | 'slipper' | 'tp' | 'fish' | 'pie' | 'gold' | 'wrench' | 'fridge';
 
 export type SplatKind = 'red' | 'brown' | 'yolk' | 'cream' | 'gold';
 
@@ -32,6 +32,9 @@ export const ITEMS: Record<ItemKind, ItemDef> = {
   fish: { kind: 'fish', name: 'Тараня', size: 68, speed: 1.0, damage: 5.0, points: 240, bounce: true, linger: 0, spin: 8, tint: [0xc98b3c, 0xffe0a0, 0x8a5a22], bonus: true },
   pie: { kind: 'pie', name: 'Торт', size: 64, speed: 0.9, damage: 6.4, points: 260, splat: 'cream', bounce: false, linger: 2.6, spin: 2.5, tint: [0xfffaf0, 0xffe7c2, 0xe0a458, 0xd91e36], bonus: true },
   gold: { kind: 'gold', name: 'Золота какашка', size: 60, speed: 0.9, damage: 11, points: 2200, splat: 'gold', bounce: false, linger: 2.4, spin: 4, tint: [0xffd23f, 0xfff3a0, 0xffffff, 0xc98a00], bonus: true },
+  // only Sergii throws these
+  wrench: { kind: 'wrench', name: 'Ключ', size: 70, speed: 1.2, damage: 5, points: 0, bounce: true, linger: 0, spin: 14, tint: [0xc9d1da, 0xffffff] },
+  fridge: { kind: 'fridge', name: 'Холодильник', size: 150, speed: 0.8, damage: 10, points: 0, bounce: true, linger: 0, spin: 3, tint: [0xffffff, 0xdfe6ee] },
 };
 
 export const BONUS_KINDS: ItemKind[] = ['egg', 'slipper', 'tp', 'fish', 'pie'];
@@ -250,6 +253,13 @@ export const LINES = {
   back: 'Я на хвилинку.',
   shoe: 'Хто дав мені тапок? Дякую.',
   mood: ['Зараз голову об холодильник кину.', 'За розвозки вб’ю.'],
+  van: 'За розвозки вб’ю.',
+  phone: ['Алло?', 'Так… Ні… Іди на трасу.', 'Все, мені ніколи.'],
+  tech: 'Вибий технічку, якщо хочеш жити.',
+  fridge: 'Зараз голову об холодильник кину!',
+  fridgeHit: 'Я ж попереджав.',
+  fridgeDodge: 'Добре, що не в голову.',
+  lostHeart2: 'Вибий технічку, якщо хочеш жити.',
 };
 
 export const EVENTS = {
@@ -257,4 +267,22 @@ export const EVENTS = {
   shield: 'СЕРГІЙ ЗНАЙШОВ ЩИТ',
   rush: 'ПЕРЕРВА ЗАКІНЧИЛАСЯ',
   shoe: 'ХТО ДАВ ЙОМУ ТАПОК?',
+  van: 'РОЗВОЗКА ПРИЇХАЛА',
+  phone: 'СЕРГІЮ ДЗВОНЯТЬ',
+  tech: 'ТЕХНІЧКА!',
+  fridge: 'ХОЛОДИЛЬНИК!',
 };
+
+/** Fun title for the result screens, picked from the round stats. */
+export function funTitle(s: { thrown: number; hits: number; heads: number; bestCombo: number; hitBy: number; dodges: number; catches: number }) {
+  const acc = s.thrown ? s.hits / s.thrown : 0;
+  if (s.thrown >= 5 && acc < 0.35) return 'Телефон протри';
+  if (s.bestCombo >= 20) return 'Серійний метальник';
+  if (s.hitBy === 0 && s.dodges >= 2) return 'Невловимий';
+  if (acc >= 0.85 && s.thrown >= 10) return 'Снайпер відділу';
+  if (s.catches >= 2) return 'Постачальник банок Сергію';
+  if (s.heads >= 20) return 'Мисливець за головами';
+  if (s.thrown >= 70) return 'Помідорна ферма';
+  if (s.hitBy >= 3) return 'Мішень місяця';
+  return 'Стажер колективу';
+}

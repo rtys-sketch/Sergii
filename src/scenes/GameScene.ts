@@ -57,7 +57,8 @@ type Act =
   | 'tantrum'
   | 'intro'
   | 'exhausted'
-  | 'laugh';
+  | 'laugh'
+  | 'phone';
 
 interface Proj {
   active: boolean;
@@ -180,6 +181,8 @@ export class GameScene extends Phaser.Scene {
   private atkCombo = 0;
   private eventT = 25;
   private lastEvent = '';
+  private phoneLine = 0;
+  private rageFridge = false;
   private rushT = 0;
   private shieldT = 0;
   private bellyCooldown = 3;
@@ -259,7 +262,8 @@ export class GameScene extends Phaser.Scene {
       dmg: easy ? 1.2 : 1,
     };
     this.attackT = rand(this.def.attackEvery[0], this.def.attackEvery[1]) * this.tune.atk * (this.def.id === 1 ? 1.1 : 0.8);
-    this.eventT = rand(16, 26);
+    this.eventT = rand(12, 20);
+    this.rageFridge = false;
     this.tutorialAttackHold = this.def.id === 1 && !save.tutorialDone;
     const early = this.mode === 'campaign' && this.def.id === 1;
     this.ammo = { poop: early ? 0 : this.def.id === 2 ? 8 : 10, can: early ? 4 : this.def.id === 2 ? 5 : 6 };
@@ -682,10 +686,15 @@ export class GameScene extends Phaser.Scene {
     } else {
       pts = 25;
     }
+    // «Сергію дзвонять»: he's distracted — everything counts double
+    const onPhone = this.act === 'phone';
+    if (onPhone) pts *= 2;
     this.addScore(pts);
+    if (onPhone && chance(0.5)) this.fx.float(L.W / 2, this.stage.py(-260), 'ВІДВОЛІКСЯ: x2', 34, '#9dff8a', 50, 420);
+    if (this.crowd.count >= 2 && (head || this.combo % 5 === 0)) audio.cheer();
 
     // damage
-    let dmg = def.damage * this.def.dmgMul * this.tune.dmg * (head ? 1.35 : 1);
+    let dmg = def.damage * this.def.dmgMul * this.tune.dmg * (head ? 1.35 : 1) * (onPhone ? 1.5 : 1);
     if (p.npc) dmg *= 0.55;
     if (this.mode === 'endless') dmg *= Math.max(0.6, 1 - (this.wave - 1) * 0.05);
 
@@ -979,6 +988,12 @@ export class GameScene extends Phaser.Scene {
     this.plans.length = 0;
     this.sergii.visibleBang = false;
     this.sergii.setShield(false);
+    if (this.sergii.phoneOn) this.sergii.setPhone(false);
+    if (this.sergii.heldKind) this.sergii.setHeld(null);
+    this.sergii.squash.target = 0;
+    this.sergii.armL.target = -0.12;
+    this.sergii.armLS.target = 1;
+    this.sergii.armRS.target = 1;
     this.hud.hideTutorial();
     this.hud.clearThreat();
   }
@@ -1176,9 +1191,9 @@ export class GameScene extends Phaser.Scene {
     const s = this.sergii;
     if (this.act !== 'free' || this.state !== 'play') return;
     const hc = s.headCenter();
-    if (side > 0 || both) s.armR.target = s.aimArm(1, hc.x + 150, hc.y + 20);
-    if ((side < 0 || both) && !s.shieldOn) s.armL.target = s.aimArm(-1, hc.x - 150, hc.y + 20);
-    this.flinchT = 0.5;
+    if (side > 0 || both) s.armR.target = s.aimArm(1, hc.x + 170, hc.y - 10, true);
+    if ((side < 0 || both) && !s.shieldOn) s.armL.target = s.aimArm(-1, hc.x - 170, hc.y - 10, true);
+    this.flinchT = 0.65;
   }
 
   private execDodge(p: Proj) {
@@ -1220,7 +1235,7 @@ export class GameScene extends Phaser.Scene {
     const ty = p.Y1;
     s.armR.target = s.aimArm(1, tx, ty + 14);
     const dist = Math.hypot(tx - s.shoulderR.x, ty - s.shoulderR.y);
-    s.armRS.target = clamp(dist / 198, 0.8, 1.55);
+    s.armRS.target = clamp(dist / 216, 0.8, 1.5);
     s.armR.k = 400;
   }
 
@@ -1259,9 +1274,16 @@ export class GameScene extends Phaser.Scene {
     s.angryFor(1.2);
     s.vx = 0;
     if (s.heldKind !== kind) s.setHeld(kind);
-    s.armR.target = -3.2;
-    s.armRS.target = 1;
+    if (s.phoneOn) s.setPhone(false);
+    s.armR.target = kind === 'fridge' ? -2.9 : -3.2;
+    s.armRS.target = kind === 'fridge' ? 1.1 : 1;
     s.armR.k = 160;
+    if (kind === 'fridge') {
+      if (s.shieldOn) s.setShield(false);
+      // the other arm flexes for the show
+      s.armL.target = 2.1;
+      audio.thud();
+    }
     s.visibleBang = true;
     s.lean.target = 0;
     this.fx.focus.k = 0;
@@ -1277,21 +1299,31 @@ export class GameScene extends Phaser.Scene {
   private release() {
     const s = this.sergii;
     const kind = this.atkKind;
+    // two-handed launch point for the fridge
+    const from = kind === 'fridge' ? { x: s.handR.x + 6, y: s.handR.y - 88 } : null;
     s.setHeld(null);
     s.visibleBang = false;
     s.armR.target = -0.5;
     s.armR.kick(22);
     s.armRS.kick(5);
+    if (kind === 'fridge') {
+      s.armL.target = 0.5;
+      s.armL.kick(-22);
+      s.armLS.target = 1;
+      s.armRS.target = 1;
+      s.squash.kick(4);
+      this.fx.shake(0.3);
+    }
     s.headScale.kick(1.2);
     s.lean.kick(-0.6);
-    this.spawnIncoming(kind, this.atkLane);
+    this.spawnIncoming(kind, this.atkLane, from);
     this.act = 'recover';
     this.actT = 0.32;
     audio.whoosh(1.3);
     if (chance(0.3)) this.say(pick(LINES.throw));
   }
 
-  private spawnIncoming(kind: ItemKind, lane: number) {
+  private spawnIncoming(kind: ItemKind, lane: number, from: { x: number; y: number } | null = null) {
     const s = this.sergii;
     let inc = this.incoming.find((i) => !i.active);
     if (!inc) {
@@ -1316,15 +1348,15 @@ export class GameScene extends Phaser.Scene {
     inc.active = true;
     inc.kind = kind;
     inc.img.setTexture('it_' + kind).setVisible(true).setAlpha(1);
-    inc.X0 = s.handR.x;
-    inc.Y0 = s.handR.y - 20;
+    inc.X0 = from ? from.x : s.handR.x;
+    inc.Y0 = from ? from.y : s.handR.y - 20;
     inc.Xt = lane * LANE_X;
     inc.Yt = this.stage.wy(L.H * 0.47, ZEND);
-    inc.T = this.def.flight * this.tune.flight * (this.rage ? 0.92 : 1);
+    inc.T = this.def.flight * this.tune.flight * (this.rage ? 0.92 : 1) * (kind === 'fridge' ? 1.3 : 1);
     inc.t = 0;
     inc.lane = lane;
     inc.rot = 0;
-    inc.vrot = rand(7, 12) * (Math.random() < 0.5 ? -1 : 1);
+    inc.vrot = (kind === 'fridge' ? rand(1.5, 2.5) : rand(7, 12)) * (Math.random() < 0.5 ? -1 : 1);
     inc.resolved = false;
     inc.dodged = false;
   }
@@ -1367,14 +1399,16 @@ export class GameScene extends Phaser.Scene {
     this.hud.heartsChanged(true);
     this.hud.clearThreat();
     this.hud.showDodgeHint(false);
-    this.fx.shake(0.75);
+    const heavy = inc.kind === 'fridge';
+    this.fx.shake(heavy ? 1 : 0.75);
     audio.hurt();
     audio.heart();
-    if (inc.kind === 'can') audio.clang();
+    if (inc.kind === 'can' || inc.kind === 'wrench') audio.clang();
     else if (inc.kind === 'tomato') audio.splat('red');
     else if (inc.kind === 'slipper') audio.slap();
+    else if (heavy) audio.thud();
     else audio.paper();
-    vibrate([40, 30, 60]);
+    vibrate(heavy ? [80, 40, 120] : [40, 30, 60]);
     this.sergii.headRot.kick(2.5);
     this.sergii.headY.kick(-150);
     this.sergii.smileFor(2.2);
@@ -1384,16 +1418,20 @@ export class GameScene extends Phaser.Scene {
     }
     this.slowT = 0;
     this.slowTarget = 1;
-    if (chance(0.55)) this.say(pick(LINES.hitPlayer), true);
+    if (heavy) this.say(LINES.fridgeHit, true);
+    else if (this.hearts === 1 && this.stats.hitBy === 2) this.say(LINES.lostHeart2, true);
+    else if (chance(0.55)) this.say(pick(LINES.hitPlayer), true);
     if (this.hearts <= 0) this.loseRound();
   }
 
   private playerDodged(inc: Incoming) {
     inc.dodged = true;
     this.stats.dodges++;
-    this.addScore(50);
+    const big = inc.kind === 'fridge';
+    this.addScore(big ? 250 : 50);
     audio.dodge();
-    this.hud.dodged();
+    this.hud.dodged(big ? 'УХИЛИВСЯ ВІД ХОЛОДИЛЬНИКА! +250' : undefined);
+    if (big) this.time.delayedCall(400, () => this.say(LINES.fridgeDodge, true));
     this.hud.clearThreat();
     this.hud.showDodgeHint(false);
     this.sergii.angryFor(1.2);
@@ -1520,10 +1558,21 @@ export class GameScene extends Phaser.Scene {
   }
 
   private triggerEvent() {
-    const opts = ['can', 'shield', 'rush', 'shoe'].filter((e) => e !== this.lastEvent);
+    const pool = ['can', 'shield', 'rush', 'shoe', 'van', 'phone', 'tech', 'van', 'phone'];
+    if (this.def.id >= 3) pool.push('fridge', 'fridge');
+    const opts = pool.filter((e) => e !== this.lastEvent);
     const ev = pick(opts);
     this.lastEvent = ev;
     const s = this.sergii;
+    if (ev === 'van') return this.deliveryVan();
+    if (ev === 'phone') return this.phoneCall();
+    if (ev === 'tech') {
+      this.hud.eventBanner(EVENTS.tech);
+      this.say(LINES.tech, true);
+      this.startAttack('wrench', this.teleTime() + 0.35);
+      return;
+    }
+    if (ev === 'fridge') return this.fridgeAttack();
     if (ev === 'can') {
       this.hud.eventBanner(EVENTS.can);
       this.say(LINES.back, true);
@@ -1548,6 +1597,64 @@ export class GameScene extends Phaser.Scene {
       this.time.delayedCall(350, () => this.say(LINES.shoe, true));
       this.startAttack('slipper', this.teleTime() + 0.2);
     }
+  }
+
+  /** «РОЗВОЗКА ПРИЇХАЛА»: a delivery van drives past and restocks the player. */
+  private deliveryVan() {
+    const st = this.stage;
+    this.hud.eventBanner(EVENTS.van);
+    audio.honk();
+    // drives along the fence, visible beside Sergii's head
+    const y = st.hy + 30;
+    const van = this.add.image(-320, y, 'van').setDepth(6.5).setScale(0.6 / (L.TS * 0.8));
+    const s = this.sergii;
+    s.headRot.target = 0.2;
+    this.time.delayedCall(700, () => this.say(LINES.van, true));
+    this.tweens.add({
+      targets: van,
+      x: L.W * 0.84,
+      duration: 1500,
+      ease: 'Cubic.Out',
+      onComplete: () => {
+        if (!this.scene.isActive()) return;
+        audio.honk();
+        this.tweens.add({ targets: van, y: y - 8, yoyo: true, duration: 90, repeat: 2 });
+        const locked = this.slotLocked(1);
+        const addPoop = locked ? 0 : 4;
+        this.ammo.poop = Math.min(16, this.ammo.poop + addPoop);
+        this.ammo.can = Math.min(12, this.ammo.can + 3);
+        const bonus = pick(BONUS_KINDS);
+        if (this.bonus.kind === bonus) this.bonus.count += 1;
+        else if (!this.bonus.kind) this.bonus = { kind: bonus, count: 1 };
+        this.hud.delivery(van.x, van.y - 40, !locked, this.bonus.kind === bonus ? bonus : null);
+        this.time.delayedCall(900, () => {
+          s.headRot.target = 0;
+          this.tweens.add({ targets: van, x: L.W + 360, duration: 1400, ease: 'Cubic.In', onComplete: () => van.destroy() });
+        });
+      },
+    });
+  }
+
+  /** «СЕРГІЮ ДЗВОНЯТЬ»: he answers the phone, stands still, hits count double. */
+  private phoneCall() {
+    const s = this.sergii;
+    this.hud.eventBanner(EVENTS.phone);
+    audio.ring();
+    this.act = 'phone';
+    this.actT = 4.6;
+    this.phoneLine = 0;
+    s.vx = 0;
+    s.setPhone(true);
+    this.time.delayedCall(700, () => {
+      if (this.act === 'phone') this.say(LINES.phone[0], true);
+    });
+  }
+
+  /** «ХОЛОДИЛЬНИК!»: two-handed overhead fridge throw with a long, fair telegraph. */
+  private fridgeAttack() {
+    this.hud.eventBanner(EVENTS.fridge);
+    this.say(LINES.fridge, true);
+    this.startAttack('fridge', this.teleTime() + 0.6);
   }
 
   private updateAI(dt: number) {
@@ -1618,7 +1725,7 @@ export class GameScene extends Phaser.Scene {
         if (def.events && !this.rage && this.state === 'play' && !s.shieldOn) {
           this.eventT -= dt;
           if (this.eventT <= 0) {
-            this.eventT = rand(20, 38);
+            this.eventT = rand(16, 28);
             this.triggerEvent();
           }
         }
@@ -1626,7 +1733,13 @@ export class GameScene extends Phaser.Scene {
       }
       case 'windup': {
         this.actT -= dt;
-        s.armR.target = -3.2 - Math.sin(this.simTime * 18) * 0.1;
+        if (this.atkKind === 'fridge') {
+          // wobbling under the weight
+          s.armR.target = -2.9 - Math.sin(this.simTime * 9) * 0.05;
+          s.armL.target = 2.1 + Math.sin(this.simTime * 7) * 0.12;
+          s.lean.target = Math.sin(this.simTime * 4.5) * 0.06;
+          s.squash.target = 0.6;
+        } else s.armR.target = -3.2 - Math.sin(this.simTime * 18) * 0.1;
         s.headScale.target = 0.97;
         if (this.actT <= 0) {
           s.headScale.target = 1;
@@ -1653,6 +1766,9 @@ export class GameScene extends Phaser.Scene {
         if (this.actT <= 0) {
           s.armR.target = 0.12;
           s.armR.k = 120;
+          s.squash.target = 0;
+          s.lean.target = 0;
+          if (!s.shieldOn) s.armL.target = -0.12;
           if (this.atkCombo > 0 && this.state === 'play') {
             this.startAttack(this.pickBack(), Math.max(0.6, this.teleTime() * 0.75), this.atkCombo - 1);
           } else this.act = 'free';
@@ -1722,6 +1838,27 @@ export class GameScene extends Phaser.Scene {
         }
         s.armR.target = -1.2;
         s.armL.target = 1.2;
+        break;
+      }
+      case 'phone': {
+        this.actT -= dt;
+        const ear = s.facePoint({ x: -250, y: -330 });
+        s.armL.target = s.aimArm(-1, ear.x - 30, ear.y + 40, true);
+        s.headRot.target = -0.12;
+        if (this.phoneLine === 0 && this.actT < 3.1) {
+          this.phoneLine = 1;
+          this.say(LINES.phone[1], true);
+        }
+        if (this.phoneLine === 1 && this.actT < 0.9) {
+          this.phoneLine = 2;
+          this.say(LINES.phone[2], true);
+        }
+        if (this.actT <= 0) {
+          s.setPhone(false);
+          s.headRot.target = 0;
+          this.act = 'free';
+          this.attackT = Math.min(this.attackT, 1.5);
+        }
         break;
       }
       default:
@@ -1816,6 +1953,10 @@ export class GameScene extends Phaser.Scene {
     if (this.rage && this.state === 'play' && this.act !== 'tantrum') {
       this.rageTime -= dt;
       this.rageElapsed += dt;
+      if (!this.rageFridge && this.rageElapsed > 4.5 && this.act === 'free') {
+        this.rageFridge = true;
+        this.fridgeAttack();
+      }
       if (this.rageTime <= 0 && this.rageElapsed >= 14) this.finalVictory();
       else if (this.rageTime <= 0) this.rageTime = 0.001;
     }

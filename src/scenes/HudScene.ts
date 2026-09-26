@@ -563,11 +563,40 @@ export class HudScene extends Phaser.Scene {
     this.tweens.add({ targets: this.comboText, angle: { from: -10, to: 0 }, duration: 300, ease: 'Elastic.Out' });
   }
 
-  dodged() {
+  /** Items fly from the delivery van into the inventory cards. */
+  delivery(fromX: number, fromY: number, poop: boolean, bonus: ItemKind | null) {
+    const drops: [number, ItemKind, number][] = [[2, 'can', 3]];
+    if (poop) drops.unshift([1, 'poop', 4]);
+    if (bonus) drops.push([3, bonus, 1]);
+    drops.forEach(([slot, kind, n], i) => {
+      for (let k = 0; k < Math.min(n, 3); k++) {
+        const c = this.cards[slot];
+        const img = this.add.image(fromX, fromY, 'it_' + kind).setScale(0.3).setDepth(16);
+        this.tweens.add({
+          targets: img,
+          x: c.x,
+          y: c.y - 16,
+          scale: 104 / 256,
+          delay: i * 220 + k * 90,
+          duration: 560,
+          ease: 'Quad.In',
+          onComplete: () => {
+            img.destroy();
+            this.refreshCards(true);
+            this.punch(c.icon, 1.3);
+            audio.pop(1.2 + k * 0.1);
+          },
+        });
+      }
+    });
+    this.toast(poop ? 'Розвозка: +4 💩  +3 🥫' : 'Розвозка: +3 🥫', '#9dd8ff');
+  }
+
+  dodged(text = 'УХИЛИВСЯ! +50') {
     const t = this.toasts[this.toastIdx];
     this.toastIdx = (this.toastIdx + 1) % this.toasts.length;
     this.tweens.killTweensOf(t);
-    t.setText('УХИЛИВСЯ! +50').setColor('#7dffb0').setVisible(true).setAlpha(1).setY(L.H * 0.56).setScale(0.6);
+    t.setText(text).setColor('#7dffb0').setVisible(true).setAlpha(1).setY(L.H * 0.56).setScale(0.6);
     this.tweens.add({ targets: t, scale: 1.1, duration: 180, ease: 'Back.Out' });
     this.tweens.add({ targets: t, alpha: 0, y: t.y - 40, delay: 600, duration: 350, onComplete: () => t.setVisible(false) });
   }
@@ -601,9 +630,13 @@ export class HudScene extends Phaser.Scene {
     const y = H * 0.46 + rand(-80, 80);
     let key = 'sp_red_1';
     let scale = 3.2;
-    if (kind === 'can') {
+    if (kind === 'can' || kind === 'wrench') {
       key = 'crack';
       scale = 3.4;
+    } else if (kind === 'fridge') {
+      key = 'crack';
+      scale = 5.4;
+      this.cameras.main.shake(260, 0.012);
     } else if (kind === 'slipper') {
       key = 'print';
       scale = 3.4 / L.TS;
@@ -616,8 +649,13 @@ export class HudScene extends Phaser.Scene {
     this.tweens.add({ targets: img, y: y + 120, alpha: 0, delay: 900, duration: 900, ease: 'Cubic.In', onComplete: () => img.setVisible(false) });
     this.flash.setAlpha(0.3);
     this.tweens.add({ targets: this.flash, alpha: 0, duration: 320 });
-    const label = kind === 'can' ? 'БАМ!' : kind === 'slipper' ? 'ШЛЬОП!' : kind === 'tp' ? 'ФШШ!' : 'ЧВЯК!';
-    const t = this.add.text(x, y - 40, label, textStyle(64, '#ffffff')).setOrigin(0.5).setDepth(12).setAngle(rand(-12, 12));
+    const labels: Partial<Record<ItemKind, string>> = { can: 'БАМ!', slipper: 'ШЛЬОП!', tp: 'ФШШ!', wrench: 'ДЗЕНЬ!', fridge: 'БАБАХ!' };
+    const label = labels[kind] ?? 'ЧВЯК!';
+    const t = this.add
+      .text(x, y - 40, label, textStyle(kind === 'fridge' ? 88 : 64, '#ffffff'))
+      .setOrigin(0.5)
+      .setDepth(12)
+      .setAngle(rand(-12, 12));
     t.setScale(0.3);
     this.tweens.add({ targets: t, scale: 1, duration: 200, ease: 'Back.Out' });
     this.tweens.add({ targets: t, alpha: 0, delay: 500, duration: 300, onComplete: () => t.destroy() });

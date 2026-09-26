@@ -3,7 +3,7 @@ import { ARM, BODY } from '../core/textures';
 import { TABLE_Y } from '../core/background';
 import { Spring, clamp, lerp, rand, wobble } from '../core/util';
 import type { Stage } from './Stage';
-import type { ItemKind, SplatKind } from '../data/config';
+import { ITEMS, type ItemKind, type SplatKind } from '../data/config';
 
 // head texture geometry (pixels in sergii-head.webp, 547x798)
 const HEAD_W = 547;
@@ -60,6 +60,7 @@ export class Sergii {
   armR = new Spring(0.12, 0.12, 120, 14);
   armL = new Spring(-0.12, -0.12, 120, 14);
   armRS = new Spring(1, 1, 200, 16);
+  armLS = new Spring(1, 1, 200, 16);
   scaleAll = new Spring(0.9, 0.9, 120, 14);
 
   t = 0;
@@ -97,7 +98,8 @@ export class Sergii {
   bang: Phaser.GameObjects.Image;
   flag: Phaser.GameObjects.Image;
   crown: Phaser.GameObjects.Image;
-  shades: Phaser.GameObjects.Image;
+  phone: Phaser.GameObjects.Image;
+  phoneOn = false;
   private decals: Decal[] = [];
   private steamTimer = 0;
   onSteam?: (x: number, y: number) => void;
@@ -133,7 +135,7 @@ export class Sergii {
     this.bang = scene.add.image(0, 0, 'bang').setDepth(75).setVisible(false);
     this.flag = scene.add.image(0, 0, 'flag').setDepth(22.9).setVisible(false).setOrigin(0.15, 0.9);
     this.crown = scene.add.image(0, 0, 'ic_crown').setDepth(21.6).setVisible(false).setOrigin(0.5, 0.85);
-    this.shades = scene.add.image(0, 0, 'ic_shades').setDepth(21.5).setVisible(false).setOrigin(0.5, 0.45);
+    this.phone = scene.add.image(0, 0, 'phone').setDepth(23).setVisible(false);
     this.update(0);
   }
 
@@ -291,7 +293,17 @@ export class Sergii {
   }
 
   get heldScale() {
-    return 0.27 * this.stage.K;
+    const size = this.heldKind ? ITEMS[this.heldKind].size : 56;
+    return 0.27 * this.stage.K * (size / 56) * (this.heldKind === 'fridge' ? 0.9 : 1);
+  }
+
+  setPhone(on: boolean) {
+    this.phoneOn = on;
+    this.phone.setVisible(on);
+    if (on) {
+      this.phone.setScale(0);
+      this.scene.tweens.add({ targets: this.phone, scale: (0.9 * this.stage.K) / this.lidTexScale, duration: 220, ease: 'Back.Out' });
+    } else this.armL.target = -0.12;
   }
 
   private get lidTexScale() {
@@ -299,11 +311,17 @@ export class Sergii {
   }
 
   /** Angle for an arm so that the hand reaches (tx, ty). */
-  aimArm(side: 1 | -1, tx: number, ty: number) {
+  aimArm(side: 1 | -1, tx: number, ty: number, outside = false) {
     const sh = side === 1 ? this.shoulderR : this.shoulderL;
     const vx = tx - sh.x;
     const vy = ty - sh.y;
-    return Math.atan2(-vx, vy) + Math.atan2(side * FOREARM_OUT, ARM.handY - ARM.py) - this.lean.x;
+    let a = Math.atan2(-vx, vy) + Math.atan2(side * FOREARM_OUT, ARM.handY - ARM.py) - this.lean.x;
+    if (outside) {
+      // raise the arm around the outside (like a real shoulder), not sweeping across the chest
+      if (side === 1 && a > 1.2) a -= Math.PI * 2;
+      if (side === -1 && a < -1.2) a += Math.PI * 2;
+    }
+    return a;
   }
 
   // ------------------------------------------------------------ frame
@@ -312,7 +330,7 @@ export class Sergii {
     const t = this.t;
     this.smileTime = Math.max(0, this.smileTime - dt);
     this.angerTime = Math.max(0, this.angerTime - dt);
-    for (const s of [this.y, this.lean, this.headX, this.headY, this.headRot, this.headScale, this.squash, this.armR, this.armL, this.armRS, this.scaleAll]) s.step(dt);
+    for (const s of [this.y, this.lean, this.headX, this.headY, this.headRot, this.headScale, this.squash, this.armR, this.armL, this.armRS, this.armLS, this.scaleAll]) s.step(dt);
 
     const KK = this.stage.K;
     const ts = this.texScale * KK;
@@ -382,22 +400,31 @@ export class Sergii {
     const frontR = this.rot(elbowOut, 0, aR);
     const frontL = this.rot(-elbowOut, 0, aL);
     const hR = this.rot(elbowOut, armLen * this.armRS.x, aR);
-    const hL = this.rot(-elbowOut, armLen, aL);
+    const hL = this.rot(-elbowOut, armLen * this.armLS.x, aL);
     this.handR.x = this.shoulderR.x + hR.x;
     this.handR.y = this.shoulderR.y + hR.y;
     this.handL.x = this.shoulderL.x + hL.x;
     this.handL.y = this.shoulderL.y + hL.y;
     this.armRBack.setPosition(p.px(this.shoulderR.x), p.py(this.shoulderR.y)).setRotation(aR).setScale(ts * sc, ts * sc * this.armRS.x);
-    this.armLBack.setPosition(p.px(this.shoulderL.x), p.py(this.shoulderL.y)).setRotation(aL).setScale(ts * sc);
+    this.armLBack.setPosition(p.px(this.shoulderL.x), p.py(this.shoulderL.y)).setRotation(aL).setScale(ts * sc, ts * sc * this.armLS.x);
     this.armRFront.setPosition(this.armRBack.x, this.armRBack.y).setRotation(aR).setScale(this.armRBack.scaleX, this.armRBack.scaleY).setAlpha(clamp((this.armR.x - 0.18) / 0.34, 0, 1));
     this.armLFront.setPosition(this.armLBack.x, this.armLBack.y).setRotation(aL).setScale(this.armLBack.scaleX, this.armLBack.scaleY).setAlpha(clamp((-this.armL.x - 0.18) / 0.34, 0, 1));
     this.armRImg.setPosition(p.px(this.shoulderR.x + frontR.x), p.py(this.shoulderR.y + frontR.y)).setRotation(aR).setScale(ts * sc, ts * sc * this.armRS.x);
-    this.armLImg.setPosition(p.px(this.shoulderL.x + frontL.x), p.py(this.shoulderL.y + frontL.y)).setRotation(aL).setScale(ts * sc);
+    this.armLImg.setPosition(p.px(this.shoulderL.x + frontL.x), p.py(this.shoulderL.y + frontL.y)).setRotation(aL).setScale(ts * sc, ts * sc * this.armLS.x);
 
     if (this.held.visible) {
-      this.held.setPosition(p.px(this.handR.x), p.py(this.handR.y - 18));
-      this.held.setRotation(Math.sin(t * 3) * 0.2 + aR * 0.3);
+      if (this.heldKind === 'fridge') {
+        // strongman: the fridge balanced on one raised palm
+        this.held.setPosition(p.px(this.handR.x + 6), p.py(this.handR.y - 88)).setRotation(Math.sin(t * 5) * 0.07);
+      } else {
+        this.held.setPosition(p.px(this.handR.x), p.py(this.handR.y - 18));
+        this.held.setRotation(Math.sin(t * 3) * 0.2 + aR * 0.3);
+      }
       if (!this.scene.tweens.isTweening(this.held)) this.held.setScale(this.heldScale);
+    }
+    if (this.phone.visible) {
+      this.phone.setPosition(p.px(this.handL.x + 6), p.py(this.handL.y - 30)).setRotation(aL * 0.2 - 0.3);
+      if (!this.scene.tweens.isTweening(this.phone)) this.phone.setScale((0.9 * KK) / this.lidTexScale);
     }
     if (this.lid.visible) {
       this.lid.setPosition(p.px(this.handL.x), p.py(this.handL.y - 20));
@@ -413,10 +440,6 @@ export class Sergii {
     if (this.crown.visible) {
       const top = this.facePoint({ x: 30, y: -600 });
       this.crown.setPosition(p.px(top.x), p.py(top.y)).setRotation(hr - 0.12).setScale((1.05 * KK * hs) / HEAD_SCALE / this.lidTexScale);
-    }
-    if (this.shades.visible) {
-      const e = this.facePoint({ x: -38, y: -418 });
-      this.shades.setPosition(p.px(e.x), p.py(e.y)).setRotation(hr).setScale((1.9 * KK * hs) / HEAD_SCALE / this.lidTexScale);
     }
 
     // mood overlays (cartoon marks on top of the real photo)
