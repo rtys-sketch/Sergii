@@ -8,6 +8,7 @@ import { ITEMS, comboMult, funTitle, type ItemKind } from '../data/config';
 import { FONT_UI, textStyle } from '../game/Fx';
 import { Button } from '../ui/Button';
 import { itemScale, type GameScene, type RoundStats } from './GameScene';
+import { goldTitle } from './MenuScene';
 
 interface Card {
   i: number;
@@ -88,6 +89,8 @@ export class HudScene extends Phaser.Scene {
   private ribbonText!: Phaser.GameObjects.Text;
   private ribbonHint!: Phaser.GameObjects.Text;
   private lastTapHint = -99;
+  private bellyDim: Phaser.GameObjects.Rectangle | null = null;
+  private bellyBox: Phaser.GameObjects.Container | null = null;
   private ribbonG!: Phaser.GameObjects.Graphics;
   private toasts: Phaser.GameObjects.Text[] = [];
   private toastIdx = 0;
@@ -681,6 +684,67 @@ export class HudScene extends Phaser.Scene {
     t.setScale(0.3);
     this.tweens.add({ targets: t, scale: 1, duration: 200, ease: 'Back.Out' });
     this.tweens.add({ targets: t, alpha: 0, delay: 500, duration: 300, onComplete: () => t.destroy() });
+  }
+
+  /**
+   * «СИЛА ПУПКА» special-move title card: the screen dims, a huge golden
+   * title slams in over spinning rays, then shrinks away to the top.
+   */
+  bellyCard() {
+    const W = L.W;
+    const cy = L.H * 0.4;
+    this.bellyEnd();
+    const dim = this.add.rectangle(W / 2, L.H / 2, W, L.H, 0x0b0508, 1).setAlpha(0).setDepth(18.5);
+    const rays = this.add.image(0, 0, 'rays').setTint(0xffb020).setBlendMode(Phaser.BlendModes.ADD).setScale(3.6).setAlpha(0.95);
+    const glow = this.add.image(0, 10, 'glow').setTint(0xffc23a).setBlendMode(Phaser.BlendModes.ADD).setScale(5.5).setAlpha(0.7);
+    const sila = this.add.text(0, -86, 'СИЛА', textStyle(56, '#ffffff', { strokeThickness: 12 })).setOrigin(0.5);
+    const pupka = goldTitle(this, 0, 8, 'ПУПКА!', 112, '#fff6b0', '#ff8a00');
+    if (pupka.width > W - 60) pupka.setScale((W - 60) / pupka.width);
+    const hint = this.add
+      .text(0, 112, 'Ухиляйся вбік від жовтої смуги!', uiText(27, '#ffffff', '800', { stroke: '#1a0f1f', strokeThickness: 7 }))
+      .setOrigin(0.5);
+    const box = this.add.container(W / 2, cy, [rays, glow, sila, pupka, hint]).setDepth(19.5).setScale(3).setAngle(-12).setAlpha(0);
+    this.bellyDim = dim;
+    this.bellyBox = box;
+    this.tweens.add({ targets: dim, alpha: 0.58, duration: 110 });
+    this.tweens.add({ targets: box, scale: 1, angle: -5, alpha: 1, duration: 280, ease: 'Back.Out' });
+    this.tweens.add({ targets: rays, angle: 360, duration: 5000, repeat: -1 });
+    this.tweens.add({ targets: pupka, scale: { from: pupka.scale, to: pupka.scale * 1.06 }, yoyo: true, repeat: -1, duration: 180, ease: 'Sine.InOut' });
+    this.tweens.killTweensOf(this.flash);
+    this.flash.setFillStyle(0xfff3c4).setAlpha(0.55);
+    this.tweens.add({ targets: this.flash, alpha: 0, duration: 260 });
+    this.cameras.main.shake(160, 0.006);
+    // after the beat, the card flies up into the threat label and the dim lifts
+    this.tweens.add({ targets: box, scale: 0.45, y: hudTop() + 238, alpha: 0, delay: 1000, duration: 320, ease: 'Cubic.In' });
+    this.tweens.add({ targets: dim, alpha: 0, delay: 1000, duration: 360, onComplete: () => this.bellyEnd() });
+  }
+
+  /** The belly wave goes off: white-gold flash + a hard shake. */
+  bellyBlast() {
+    this.bellyEnd();
+    this.tweens.killTweensOf(this.flash);
+    this.flash.setFillStyle(0xffffff).setAlpha(0.75);
+    this.tweens.add({
+      targets: this.flash,
+      alpha: 0,
+      duration: 520,
+      ease: 'Cubic.Out',
+      onUpdate: (tw) => {
+        if (tw.progress > 0.15) this.flash.setFillStyle(0xffd23f);
+      },
+    });
+    this.cameras.main.shake(260, 0.014);
+  }
+
+  bellyEnd() {
+    for (const o of [this.bellyDim, this.bellyBox]) {
+      if (!o) continue;
+      this.tweens.killTweensOf(o);
+      if (o instanceof Phaser.GameObjects.Container) for (const c of o.list) this.tweens.killTweensOf(c);
+      o.destroy();
+    }
+    this.bellyDim = null;
+    this.bellyBox = null;
   }
 
   powerHit() {

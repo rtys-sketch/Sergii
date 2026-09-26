@@ -297,12 +297,100 @@ class AudioEngine {
     this.tone('sawtooth', 180, 520, t, 0.35, 0.05, this.sfxBus, 0.25);
   }
 
+  /** «СИЛА ПУПКА» announcement: a gong-like boom under a brassy stab. */
+  bellyIntro() {
+    if (!this.ok('bellyIntro', 1)) return;
+    const t = this.now;
+    this.tone('sine', 110, 38, t, 1.2, 0.9);
+    this.noise(t, 0.9, 0.3, 'lowpass', 1400, 90, 0.8, this.sfxBus, 0.01);
+    for (const [m, g] of [[1, 0.2], [2.4, 0.08], [3.9, 0.05], [5.3, 0.03]] as const) this.tone('sine', 196 * m, 196 * m * 0.99, t, 1.6, g);
+    for (const n of [43, 50, 55, 58]) {
+      this.tone('sawtooth', midi(n), midi(n), t + 0.02, 0.5, 0.06, this.sfxBus, 0.02);
+      this.tone('square', midi(n + 12), midi(n + 12), t + 0.02, 0.28, 0.025, this.sfxBus, 0.02);
+    }
+  }
+
+  /** Charge-up: a rising, trembling hum and a heartbeat that speeds up. */
+  bellyCharge(dur: number) {
+    if (!this.ok('bellyCharge', 0.8)) return;
+    const t = this.now;
+    const ctx = this.ctx!;
+    const o = ctx.createOscillator();
+    const f = ctx.createBiquadFilter();
+    const g = ctx.createGain();
+    const lfo = ctx.createOscillator();
+    const lg = ctx.createGain();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(70, t);
+    o.frequency.exponentialRampToValueAtTime(330, t + dur);
+    f.type = 'lowpass';
+    f.frequency.setValueAtTime(300, t);
+    f.frequency.exponentialRampToValueAtTime(2600, t + dur);
+    lfo.frequency.setValueAtTime(5, t);
+    lfo.frequency.linearRampToValueAtTime(26, t + dur);
+    lg.gain.value = 0.06;
+    lfo.connect(lg);
+    lg.connect(g.gain);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.1, t + dur * 0.85);
+    g.gain.linearRampToValueAtTime(0.0001, t + dur + 0.05);
+    o.connect(f);
+    f.connect(g);
+    g.connect(this.sfxBus);
+    o.start(t);
+    lfo.start(t);
+    o.stop(t + dur + 0.1);
+    lfo.stop(t + dur + 0.1);
+    // heartbeat thumps, closer and closer together
+    let tt = t;
+    let gap = 0.42;
+    while (tt < t + dur - 0.05) {
+      this.tone('sine', 72, 40, tt, 0.14, 0.55);
+      this.tone('sine', 64, 36, tt + 0.1, 0.12, 0.35);
+      tt += gap;
+      gap = Math.max(0.16, gap * 0.8);
+    }
+    this.noise(t + dur - 0.4, 0.42, 0.25, 'bandpass', 400, 3800, 1.5, this.sfxBus, 0.35);
+  }
+
+  /** Countdown beep (3, 2, 1 — higher each time). */
+  countBeep(n: number) {
+    if (!this.ok('countBeep', 0.1)) return;
+    const t = this.now;
+    const f = n === 1 ? 1320 : n === 2 ? 990 : 784;
+    this.tone('square', f, f, t, 0.12, 0.08);
+    this.tone('sine', f / 2, f / 2, t, 0.16, 0.12);
+  }
+
+  /** The belly wave: deep boom, a wobbly «boing» and a rushing blast. */
   belly() {
     if (!this.ok('belly', 0.3)) return;
     const t = this.now;
-    this.tone('sine', 180, 42, t, 0.55, 0.85);
-    this.tone('sawtooth', 92, 38, t + 0.03, 0.4, 0.12);
-    this.noise(t, 0.45, 0.35, 'lowpass', 800, 120, 0.8);
+    this.tone('sine', 150, 30, t, 0.9, 1);
+    this.tone('sawtooth', 92, 34, t + 0.02, 0.55, 0.16);
+    this.noise(t, 0.7, 0.55, 'lowpass', 2400, 120, 0.8, this.sfxBus, 0.005);
+    this.noise(t + 0.05, 0.5, 0.3, 'bandpass', 900, 300, 1.2);
+    const ctx = this.ctx!;
+    const o = ctx.createOscillator();
+    const lfo = ctx.createOscillator();
+    const lg = ctx.createGain();
+    const g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(240, t + 0.05);
+    o.frequency.exponentialRampToValueAtTime(120, t + 0.6);
+    lfo.frequency.value = 14;
+    lg.gain.value = 40;
+    lfo.connect(lg);
+    lg.connect(o.frequency);
+    g.gain.setValueAtTime(0.0001, t + 0.05);
+    g.gain.linearRampToValueAtTime(0.25, t + 0.08);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.62);
+    o.connect(g);
+    g.connect(this.sfxBus);
+    o.start(t + 0.05);
+    lfo.start(t + 0.05);
+    o.stop(t + 0.65);
+    lfo.stop(t + 0.65);
   }
 
   dodge() {

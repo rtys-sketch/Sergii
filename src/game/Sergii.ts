@@ -93,6 +93,10 @@ export class Sergii {
   sweat: Phaser.GameObjects.Image;
   bang: Phaser.GameObjects.Image;
   flag: Phaser.GameObjects.Image;
+  /** golden «super mode» aura (СИЛА ПУПКА): silhouettes behind him */
+  private aura: { img: Phaser.GameObjects.Image; src: () => Phaser.GameObjects.Image; grow: number; outer: boolean }[] = [];
+  auraTarget = 0;
+  private auraK = 0;
   crown: Phaser.GameObjects.Image;
   phone: Phaser.GameObjects.Image;
   phoneOn = false;
@@ -127,6 +131,25 @@ export class Sergii {
     this.sweat = scene.add.image(0, 0, 'sweat').setDepth(23).setVisible(false);
     this.bang = scene.add.image(0, 0, 'bang').setDepth(75).setVisible(false);
     this.flag = scene.add.image(0, 0, 'flag').setDepth(22.9).setVisible(false).setOrigin(0.15, 0.9);
+    // two layers of flat-gold silhouettes, a bit larger than him, flickering
+    const parts: [() => Phaser.GameObjects.Image, boolean][] = [
+      [() => this.body, false],
+      [() => this.head, false],
+      [() => this.armLImg, false],
+      [() => this.armRImg, false],
+    ];
+    for (const outer of [true, false]) {
+      for (const [src] of parts) {
+        const o = src();
+        const img = scene.add
+          .image(0, 0, o.texture.key)
+          .setOrigin(o.originX, o.originY)
+          .setTintFill(outer ? 0xff8a00 : 0xffd23f)
+          .setDepth(outer ? 19.0 : 19.1)
+          .setVisible(false);
+        this.aura.push({ img, src, grow: outer ? 0.13 : 0.06, outer });
+      }
+    }
     this.crown = scene.add.image(0, 0, 'ic_crown').setDepth(21.6).setVisible(false).setOrigin(0.5, 0.85);
     this.phone = scene.add.image(0, 0, 'phone').setDepth(23).setVisible(false);
     this.update(0);
@@ -478,6 +501,22 @@ export class Sergii {
     this.head.setTint(faceTint);
     this.headHappy.setTint(faceTint);
     this.headAngry.setTint(faceTint);
+
+    // «СИЛА ПУПКА» aura
+    this.auraK = lerp(this.auraK, this.auraTarget, Math.min(1, dt * 8));
+    const showAura = this.auraK > 0.02 && this.body.visible;
+    const fl = 0.5 + 0.5 * Math.sin(t * 27) * Math.sin(t * 13 + 1);
+    for (const a of this.aura) {
+      a.img.setVisible(showAura);
+      if (!showAura) continue;
+      const o = a.src();
+      const f = 1 + a.grow * (0.8 + fl * 0.4);
+      a.img
+        .setPosition(o.x, o.y + (a.outer ? -4 : -2))
+        .setRotation(o.rotation)
+        .setScale(o.scaleX * f, o.scaleY * f)
+        .setAlpha(this.auraK * (a.outer ? 0.28 + fl * 0.2 : 0.5 + fl * 0.25));
+    }
 
     // decals follow the head / body
     for (const d of this.decals) {
