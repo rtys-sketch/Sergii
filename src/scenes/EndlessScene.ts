@@ -31,7 +31,6 @@ export class EndlessScene extends Phaser.Scene {
     this.sergii = new Sergii(this, this.stage);
     this.fx = new Fx(this);
     this.sergii.crown.setVisible(true);
-    this.sergii.shades.setVisible(true);
     this.sergii.moodLevel = 1;
     this.sergii.addDecal('red', 110, 60, true, 999);
     this.sergii.onSteam = (x, y) => this.fx.steam(x, y);

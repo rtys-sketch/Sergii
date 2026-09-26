@@ -4,10 +4,11 @@ import { audio } from '../core/audio';
 import { persist, save } from '../core/save';
 import { shareScore } from '../core/share';
 import { clamp, fmt, rand } from '../core/util';
-import { ITEMS, comboMult, type ItemKind } from '../data/config';
+import { ITEMS, comboMult, funTitle, type ItemKind } from '../data/config';
 import { FONT_UI, textStyle } from '../game/Fx';
 import { Button } from '../ui/Button';
 import { itemScale, type GameScene, type RoundStats } from './GameScene';
+import { goldTitle } from './MenuScene';
 
 interface Card {
   i: number;
@@ -86,6 +87,11 @@ export class HudScene extends Phaser.Scene {
   private bannerBand!: Phaser.GameObjects.Rectangle;
   private ribbon!: Phaser.GameObjects.Container;
   private ribbonText!: Phaser.GameObjects.Text;
+  private ribbonHint!: Phaser.GameObjects.Text;
+  private lastTapHint = -99;
+  private bellyDim: Phaser.GameObjects.Rectangle | null = null;
+  private bellyBox: Phaser.GameObjects.Container | null = null;
+  private ribbonG!: Phaser.GameObjects.Graphics;
   private toasts: Phaser.GameObjects.Text[] = [];
   private toastIdx = 0;
   private signSide = 1;
@@ -252,15 +258,10 @@ export class HudScene extends Phaser.Scene {
       .setOrigin(0.5, 0);
     this.bannerBox = this.add.container(W / 2, L.H * 0.4, [this.bannerTitle, this.bannerSub]).setDepth(21).setVisible(false);
 
-    const rg = this.add.graphics();
-    rg.fillStyle(0x1a0f1f, 1);
-    rg.fillRect(-W / 2 - 20, -36, W + 40, 72);
-    rg.fillStyle(0xe8323c, 1);
-    rg.fillRect(-W / 2 - 20, -30, W + 40, 60);
-    rg.fillStyle(0xffffff, 0.2);
-    rg.fillRect(-W / 2 - 20, -30, W + 40, 8);
+    this.ribbonG = this.add.graphics();
     this.ribbonText = this.add.text(0, 0, '', textStyle(30, '#ffffff')).setOrigin(0.5);
-    this.ribbon = this.add.container(W / 2, top + 290, [rg, this.ribbonText]).setDepth(19).setVisible(false).setAngle(-3);
+    this.ribbonHint = this.add.text(0, 0, '', uiText(21, '#fff3c4', '800')).setOrigin(0.5);
+    this.ribbon = this.add.container(W / 2, top + 290, [this.ribbonG, this.ribbonText, this.ribbonHint]).setDepth(19).setVisible(false).setAngle(-3);
 
     for (let i = 0; i < 4; i++) {
       this.toasts.push(
@@ -440,12 +441,23 @@ export class HudScene extends Phaser.Scene {
     }
     this.held.setVisible(false);
     this.refreshCards(true);
-    if (Math.abs(vx) > 650 && Math.abs(tx) > 40 && Math.abs(tx) > Math.abs(ty)) {
+    // Dodging only exists while something is coming at you — otherwise stray
+    // taps would swing the whole view left and right for nothing.
+    const sideSwipe = Math.abs(vx) > 650 && Math.abs(tx) > 40 && Math.abs(tx) > Math.abs(ty);
+    const tap = !d.onCard && dist < 24 && t - d.t0 < 450;
+    if (!g.threat) {
+      if ((tap || sideSwipe) && g.state === 'play' && this.t - this.lastTapHint > 6) {
+        this.lastTapHint = this.t;
+        this.toast('Свайпни вгору, щоб кинути 👆', '#ffffff');
+      }
+      return;
+    }
+    if (sideSwipe) {
       g.dodge(Math.sign(tx));
       return;
     }
     // a tap (not on a card) dodges toward that side
-    if (!d.onCard && dist < 24 && t - d.t0 < 450) g.dodge(x < L.W / 2 ? -1 : 1);
+    if (tap) g.dodge(x < L.W / 2 ? -1 : 1);
   }
 
   private shakeCard(c: Card, msg: string) {
@@ -487,14 +499,27 @@ export class HudScene extends Phaser.Scene {
     audio.pop(0.8);
   }
 
-  eventBanner(text: string) {
+  eventBanner(text: string, hint = '') {
     const r = this.ribbon;
+    const W = L.W;
     this.tweens.killTweensOf(r);
-    this.ribbonText.setText(text);
+    // red band; taller when it carries a hint line explaining the event
+    const hh = hint ? 50 : 30;
+    const g = this.ribbonG;
+    g.clear();
+    g.fillStyle(0x1a0f1f, 1);
+    g.fillRect(-W / 2 - 20, -hh - 6, W + 40, hh * 2 + 12);
+    g.fillStyle(0xe8323c, 1);
+    g.fillRect(-W / 2 - 20, -hh, W + 40, hh * 2);
+    g.fillStyle(0xffffff, 0.2);
+    g.fillRect(-W / 2 - 20, -hh, W + 40, 8);
+    this.ribbonText.setText(text).setY(hint ? -16 : 0);
     this.ribbonText.setScale(Math.min(1, (L.W - 60) / this.ribbonText.width));
+    this.ribbonHint.setText(hint).setY(24).setVisible(!!hint);
+    this.ribbonHint.setScale(Math.min(1, (L.W - 60) / Math.max(1, this.ribbonHint.width)));
     r.setVisible(true).setX(-L.W);
     this.tweens.add({ targets: r, x: L.W / 2, duration: 320, ease: 'Back.Out' });
-    this.tweens.add({ targets: r, x: L.W * 2, delay: 1900, duration: 300, ease: 'Cubic.In', onComplete: () => r.setVisible(false) });
+    this.tweens.add({ targets: r, x: L.W * 2, delay: 2400, duration: 300, ease: 'Cubic.In', onComplete: () => r.setVisible(false) });
     audio.whistle();
   }
 
@@ -505,7 +530,7 @@ export class HudScene extends Phaser.Scene {
     const busy = this.toasts.filter((q) => q !== t && q.visible).length;
     t.setText(text).setColor(color).setVisible(true).setAlpha(0).setY(hudTop() + (this.rageLabel.visible ? 262 : 236) + busy * 36).setScale(0.8);
     this.tweens.add({ targets: t, alpha: 1, scale: 1, duration: 200, ease: 'Back.Out' });
-    this.tweens.add({ targets: t, alpha: 0, y: t.y - 20, delay: 1900, duration: 400, onComplete: () => t.setVisible(false) });
+    this.tweens.add({ targets: t, alpha: 0, y: t.y - 20, delay: 2400, duration: 400, onComplete: () => t.setVisible(false) });
   }
 
   warn(text: string) {
@@ -563,13 +588,42 @@ export class HudScene extends Phaser.Scene {
     this.tweens.add({ targets: this.comboText, angle: { from: -10, to: 0 }, duration: 300, ease: 'Elastic.Out' });
   }
 
-  dodged() {
+  /** Items fly from the delivery van into the inventory cards. */
+  delivery(fromX: number, fromY: number, poop: boolean, bonus: ItemKind | null) {
+    const drops: [number, ItemKind, number][] = [[2, 'can', 3]];
+    if (poop) drops.unshift([1, 'poop', 4]);
+    if (bonus) drops.push([3, bonus, 1]);
+    drops.forEach(([slot, kind, n], i) => {
+      for (let k = 0; k < Math.min(n, 3); k++) {
+        const c = this.cards[slot];
+        const img = this.add.image(fromX, fromY, 'it_' + kind).setScale(0.3).setDepth(16);
+        this.tweens.add({
+          targets: img,
+          x: c.x,
+          y: c.y - 16,
+          scale: 104 / 256,
+          delay: i * 220 + k * 90,
+          duration: 560,
+          ease: 'Quad.In',
+          onComplete: () => {
+            img.destroy();
+            this.refreshCards(true);
+            this.punch(c.icon, 1.3);
+            audio.pop(1.2 + k * 0.1);
+          },
+        });
+      }
+    });
+    this.toast(poop ? 'Розвозка: +4 💩  +3 🥫' : 'Розвозка: +3 🥫', '#9dd8ff');
+  }
+
+  dodged(text = 'УХИЛИВСЯ! +50') {
     const t = this.toasts[this.toastIdx];
     this.toastIdx = (this.toastIdx + 1) % this.toasts.length;
     this.tweens.killTweensOf(t);
-    t.setText('УХИЛИВСЯ! +50').setColor('#7dffb0').setVisible(true).setAlpha(1).setY(L.H * 0.56).setScale(0.6);
+    t.setText(text).setColor('#7dffb0').setVisible(true).setAlpha(1).setY(L.H * 0.56).setScale(0.6);
     this.tweens.add({ targets: t, scale: 1.1, duration: 180, ease: 'Back.Out' });
-    this.tweens.add({ targets: t, alpha: 0, y: t.y - 40, delay: 600, duration: 350, onComplete: () => t.setVisible(false) });
+    this.tweens.add({ targets: t, alpha: 0, y: t.y - 40, delay: 850, duration: 350, onComplete: () => t.setVisible(false) });
   }
 
   showThreat(lane: number, _dur: number, label = 'Сергій кидає в тебе!') {
@@ -601,9 +655,13 @@ export class HudScene extends Phaser.Scene {
     const y = H * 0.46 + rand(-80, 80);
     let key = 'sp_red_1';
     let scale = 3.2;
-    if (kind === 'can') {
+    if (kind === 'can' || kind === 'wrench') {
       key = 'crack';
       scale = 3.4;
+    } else if (kind === 'fridge') {
+      key = 'crack';
+      scale = 5.4;
+      this.cameras.main.shake(260, 0.012);
     } else if (kind === 'slipper') {
       key = 'print';
       scale = 3.4 / L.TS;
@@ -616,11 +674,77 @@ export class HudScene extends Phaser.Scene {
     this.tweens.add({ targets: img, y: y + 120, alpha: 0, delay: 900, duration: 900, ease: 'Cubic.In', onComplete: () => img.setVisible(false) });
     this.flash.setAlpha(0.3);
     this.tweens.add({ targets: this.flash, alpha: 0, duration: 320 });
-    const label = kind === 'can' ? 'БАМ!' : kind === 'slipper' ? 'ШЛЬОП!' : kind === 'tp' ? 'ФШШ!' : 'ЧВЯК!';
-    const t = this.add.text(x, y - 40, label, textStyle(64, '#ffffff')).setOrigin(0.5).setDepth(12).setAngle(rand(-12, 12));
+    const labels: Partial<Record<ItemKind, string>> = { can: 'БАМ!', slipper: 'ШЛЬОП!', tp: 'ФШШ!', wrench: 'ДЗЕНЬ!', fridge: 'БАБАХ!' };
+    const label = labels[kind] ?? 'ЧВЯК!';
+    const t = this.add
+      .text(x, y - 40, label, textStyle(kind === 'fridge' ? 88 : 64, '#ffffff'))
+      .setOrigin(0.5)
+      .setDepth(12)
+      .setAngle(rand(-12, 12));
     t.setScale(0.3);
     this.tweens.add({ targets: t, scale: 1, duration: 200, ease: 'Back.Out' });
     this.tweens.add({ targets: t, alpha: 0, delay: 500, duration: 300, onComplete: () => t.destroy() });
+  }
+
+  /**
+   * «СИЛА ПУПКА» special-move title card: the screen dims, a huge golden
+   * title slams in over spinning rays, then shrinks away to the top.
+   */
+  bellyCard() {
+    const W = L.W;
+    const cy = L.H * 0.4;
+    this.bellyEnd();
+    const dim = this.add.rectangle(W / 2, L.H / 2, W, L.H, 0x0b0508, 1).setAlpha(0).setDepth(18.5);
+    const rays = this.add.image(0, 0, 'rays').setTint(0xffb020).setBlendMode(Phaser.BlendModes.ADD).setScale(3.6).setAlpha(0.95);
+    const glow = this.add.image(0, 10, 'glow').setTint(0xffc23a).setBlendMode(Phaser.BlendModes.ADD).setScale(5.5).setAlpha(0.7);
+    const sila = this.add.text(0, -86, 'СИЛА', textStyle(56, '#ffffff', { strokeThickness: 12 })).setOrigin(0.5);
+    const pupka = goldTitle(this, 0, 8, 'ПУПКА!', 112, '#fff6b0', '#ff8a00');
+    if (pupka.width > W - 60) pupka.setScale((W - 60) / pupka.width);
+    const hint = this.add
+      .text(0, 112, 'Ухиляйся вбік від жовтої смуги!', uiText(27, '#ffffff', '800', { stroke: '#1a0f1f', strokeThickness: 7 }))
+      .setOrigin(0.5);
+    const box = this.add.container(W / 2, cy, [rays, glow, sila, pupka, hint]).setDepth(19.5).setScale(3).setAngle(-12).setAlpha(0);
+    this.bellyDim = dim;
+    this.bellyBox = box;
+    this.tweens.add({ targets: dim, alpha: 0.58, duration: 110 });
+    this.tweens.add({ targets: box, scale: 1, angle: -5, alpha: 1, duration: 280, ease: 'Back.Out' });
+    this.tweens.add({ targets: rays, angle: 360, duration: 5000, repeat: -1 });
+    this.tweens.add({ targets: pupka, scale: { from: pupka.scale, to: pupka.scale * 1.06 }, yoyo: true, repeat: -1, duration: 180, ease: 'Sine.InOut' });
+    this.tweens.killTweensOf(this.flash);
+    this.flash.setFillStyle(0xfff3c4).setAlpha(0.55);
+    this.tweens.add({ targets: this.flash, alpha: 0, duration: 260 });
+    this.cameras.main.shake(160, 0.006);
+    // after the beat, the card flies up into the threat label and the dim lifts
+    this.tweens.add({ targets: box, scale: 0.45, y: hudTop() + 238, alpha: 0, delay: 1000, duration: 320, ease: 'Cubic.In' });
+    this.tweens.add({ targets: dim, alpha: 0, delay: 1000, duration: 360, onComplete: () => this.bellyEnd() });
+  }
+
+  /** The belly wave goes off: white-gold flash + a hard shake. */
+  bellyBlast() {
+    this.bellyEnd();
+    this.tweens.killTweensOf(this.flash);
+    this.flash.setFillStyle(0xffffff).setAlpha(0.75);
+    this.tweens.add({
+      targets: this.flash,
+      alpha: 0,
+      duration: 520,
+      ease: 'Cubic.Out',
+      onUpdate: (tw) => {
+        if (tw.progress > 0.15) this.flash.setFillStyle(0xffd23f);
+      },
+    });
+    this.cameras.main.shake(260, 0.014);
+  }
+
+  bellyEnd() {
+    for (const o of [this.bellyDim, this.bellyBox]) {
+      if (!o) continue;
+      this.tweens.killTweensOf(o);
+      if (o instanceof Phaser.GameObjects.Container) for (const c of o.list) this.tweens.killTweensOf(c);
+      o.destroy();
+    }
+    this.bellyDim = null;
+    this.bellyBox = null;
   }
 
   powerHit() {
@@ -756,6 +880,23 @@ export class HudScene extends Phaser.Scene {
     return out;
   }
 
+  /** «Звання» from the stats + the round's quote, as two centred lines. */
+  private rankQuote(stats: RoundStats, quote: string, y: number) {
+    const W = L.W;
+    const out: Phaser.GameObjects.Text[] = [];
+    const rank = this.add.text(W / 2, y, `🏅 ЗВАННЯ: ${funTitle(stats)}`, uiText(23, '#ffd23f', '800')).setOrigin(0.5);
+    if (rank.width > 580) rank.setScale(580 / rank.width);
+    out.push(rank);
+    if (quote) {
+      const q = this.add
+        .text(W / 2, y + 38, `«${quote.replace(/[.!]+$/, '')}» — Сергій`, uiText(19, '#e8dcf5', '700', { align: 'center', wordWrap: { width: 560 } }))
+        .setOrigin(0.5, 0.5);
+      if (q.width > 580) q.setScale(580 / q.width);
+      out.push(q);
+    }
+    return out;
+  }
+
   private countUp(text: Phaser.GameObjects.Text, from: number, to: number, dur = 900) {
     const o = { v: from };
     this.tweens.add({
@@ -860,10 +1001,11 @@ export class HudScene extends Phaser.Scene {
     bonus: { win: number; lives: number; acc: number };
     total: number;
     round: number;
+    quote: string;
   }) {
     const W = L.W;
     const H = L.H;
-    const ph = 640;
+    const ph = 730;
     const cy = H - Math.max(L.safeBottom, 12) - ph / 2 - 20;
     const p = this.panel(W / 2, cy, 640, ph);
     const top = cy - ph / 2;
@@ -878,7 +1020,8 @@ export class HudScene extends Phaser.Scene {
       .setOrigin(0.5);
     const cols = this.statCols(d.stats, W / 2, top + 372, 580);
     const total = this.add.text(W / 2, top + 452, `ЗАГАЛОМ: ${fmt(d.total)}`, textStyle(22, '#ffffff', { strokeThickness: 0 })).setOrigin(0.5);
-    const next = new Button(this, W / 2 + 80, top + 548, {
+    const rq = this.rankQuote(d.stats, d.quote, top + 510);
+    const next = new Button(this, W / 2 + 80, top + 636, {
       w: 380,
       h: 90,
       label: 'ДАЛІ  →',
@@ -890,7 +1033,7 @@ export class HudScene extends Phaser.Scene {
         g.scene.restart({ mode: 'campaign', round: Math.min(5, d.round + 1), runScore: d.total });
       },
     });
-    const menu = new Button(this, W / 2 - 200, top + 548, {
+    const menu = new Button(this, W / 2 - 200, top + 636, {
       w: 150,
       h: 90,
       label: 'МЕНЮ',
@@ -899,14 +1042,14 @@ export class HudScene extends Phaser.Scene {
       textColor: '#ffffff',
       onClick: () => this.toMenu(),
     });
-    this.openModal([p, hdr, title, line, scoreLbl, score, bonus, ...cols, total, next, menu], 0.3);
+    this.openModal([p, hdr, title, line, scoreLbl, score, bonus, ...cols, total, ...rq, next, menu], 0.3);
     this.countUp(score, 0, d.stats.score);
   }
 
-  showGameOver(d: { endless: boolean; stats: RoundStats; total: number; wave: number; record: boolean; round: number }) {
+  showGameOver(d: { endless: boolean; stats: RoundStats; total: number; wave: number; record: boolean; round: number; quote: string }) {
     const W = L.W;
     const H = L.H;
-    const ph = 640;
+    const ph = 730;
     const cy = H - Math.max(L.safeBottom, 12) - ph / 2 - 20;
     const p = this.panel(W / 2, cy, 640, ph, 0x2c1422);
     const top = cy - ph / 2;
@@ -921,7 +1064,8 @@ export class HudScene extends Phaser.Scene {
     const best = d.endless ? save.endlessHigh : save.highScore;
     const bestT = this.add.text(W / 2, top + 266, `Найкращий результат: ${fmt(best)}`, uiText(18, '#cbb8da', '700')).setOrigin(0.5);
     const cols = this.statCols(d.stats, W / 2, top + 344, 580);
-    const again = new Button(this, W / 2 + 80, top + 452, {
+    const rq = this.rankQuote(d.stats, d.quote, top + 424);
+    const again = new Button(this, W / 2 + 80, top + 540, {
       w: 380,
       h: 88,
       label: 'ЩЕ РАЗ',
@@ -932,7 +1076,7 @@ export class HudScene extends Phaser.Scene {
         g.scene.restart({ mode: g.mode, round: g.def.id, runScore: g.runStart });
       },
     });
-    const menu = new Button(this, W / 2 - 200, top + 452, {
+    const menu = new Button(this, W / 2 - 200, top + 540, {
       w: 150,
       h: 88,
       label: 'МЕНЮ',
@@ -941,20 +1085,20 @@ export class HudScene extends Phaser.Scene {
       textColor: '#ffffff',
       onClick: () => this.toMenu(),
     });
-    const share = new Button(this, W / 2, top + 560, {
+    const share = new Button(this, W / 2, top + 646, {
       w: 560,
       h: 70,
       label: '↗  ПОДІЛИТИСЯ РЕЗУЛЬТАТОМ',
       size: 20,
       color: 0x2a2233,
       textColor: '#ffffff',
-      onClick: () => this.doShare(d.total, d.endless),
+      onClick: () => this.doShare(d.total, d.endless, funTitle(d.stats)),
     });
-    this.openModal([p, title, line, scoreLbl, score, bestT, ...cols, again, menu, share], 0.4);
+    this.openModal([p, title, line, scoreLbl, score, bestT, ...cols, ...rq, again, menu, share], 0.4);
     this.countUp(score, 0, d.total);
   }
 
-  showVictory(d: { total: number; stats: RoundStats; bonus: { win: number; lives: number; acc: number }; firstClear: boolean }) {
+  showVictory(d: { total: number; stats: RoundStats; bonus: { win: number; lives: number; acc: number }; firstClear: boolean; quote: string }) {
     const W = L.W;
     const H = L.H;
     const top0 = hudTop();
@@ -962,7 +1106,7 @@ export class HudScene extends Phaser.Scene {
     const t1 = this.add.text(W / 2, top0 + 70, 'СЕРГІЙ', textStyle(84, '#ff3b30', { stroke: '#ffffff', strokeThickness: 12 })).setOrigin(0.5).setAngle(-3);
     const t2 = this.add.text(W / 2, top0 + 150, 'ПРОГРАВ ВСІМ', textStyle(56, '#ffffff', { stroke: '#1a0f1f', strokeThickness: 12 })).setOrigin(0.5).setAngle(-3);
     const t3 = this.add.text(W / 2, top0 + 214, 'Дивно. Хто б міг подумати.', uiText(26, '#ffffff', '800', { stroke: '#1a0f1f', strokeThickness: 7 })).setOrigin(0.5);
-    const ph = 640;
+    const ph = 700;
     const cy = H - Math.max(L.safeBottom, 12) - ph / 2 - 10;
     const p = this.panel(W / 2, cy, 640, ph, 0x1f1726);
     const top = cy - ph / 2;
@@ -970,10 +1114,11 @@ export class HudScene extends Phaser.Scene {
     const score = this.add.text(W / 2, top + 92, '0', textStyle(70, '#ffd23f')).setOrigin(0.5);
     const rec = this.add.text(W / 2, top + 140, `Найкращий результат: ${fmt(save.highScore)}`, uiText(17, '#cbb8da', '700')).setOrigin(0.5);
     const cols = this.statCols(d.stats, W / 2, top + 206, 590);
+    const rq = this.rankQuote(d.stats, d.quote, top + 270);
     const unlock = this.add
-      .text(W / 2, top + 286, d.firstClear ? '🔓 Відкрито: «СЕРГІЙ: НЕ ТРЕБА БУЛО»' : '«СЕРГІЙ: НЕ ТРЕБА БУЛО» чекає на реванш', uiText(19, '#9dff8a', '800', { align: 'center' }))
+      .text(W / 2, top + 348, d.firstClear ? '🔓 Відкрито: «СЕРГІЙ: НЕ ТРЕБА БУЛО»' : '«СЕРГІЙ: НЕ ТРЕБА БУЛО» чекає на реванш', uiText(19, '#9dff8a', '800', { align: 'center' }))
       .setOrigin(0.5);
-    const again = new Button(this, W / 2, top + 366, {
+    const again = new Button(this, W / 2, top + 424, {
       w: 580,
       h: 80,
       label: 'ЩЕ РАЗ',
@@ -986,7 +1131,7 @@ export class HudScene extends Phaser.Scene {
         g.scene.restart({ mode: 'campaign', round: 1, runScore: 0 });
       },
     });
-    const rematch = new Button(this, W / 2, top + 460, {
+    const rematch = new Button(this, W / 2, top + 516, {
       w: 580,
       h: 80,
       label: 'РЕВАНШ ІЗ СЕРГІЄМ',
@@ -1000,17 +1145,17 @@ export class HudScene extends Phaser.Scene {
         g.scene.start('Endless');
       },
     });
-    const share = new Button(this, W / 2, top + 556, {
+    const share = new Button(this, W / 2, top + 610, {
       w: 580,
       h: 74,
       label: '↗  ПОДІЛИТИСЯ РЕЗУЛЬТАТОМ',
       size: 21,
       color: 0x2a2233,
       textColor: '#ffffff',
-      onClick: () => this.doShare(d.total, false),
+      onClick: () => this.doShare(d.total, false, funTitle(d.stats)),
     });
     this.tweens.add({ targets: this.topUi, alpha: 0, duration: 300 });
-    const c = this.openModal([t1, t2, t3, p, lbl, score, rec, ...cols, unlock, again, rematch, share], 0.12);
+    const c = this.openModal([t1, t2, t3, p, lbl, score, rec, ...cols, ...rq, unlock, again, rematch, share], 0.12);
     for (const o of [t1, t2]) {
       o.setScale(0);
       this.tweens.add({ targets: o, scale: 1, duration: 500, ease: 'Back.Out', delay: o === t2 ? 150 : 0 });
@@ -1019,8 +1164,8 @@ export class HudScene extends Phaser.Scene {
     this.countUp(score, 0, d.total, 1400);
   }
 
-  private async doShare(score: number, endless: boolean) {
-    const r = await shareScore(score, endless);
+  private async doShare(score: number, endless: boolean, rank?: string) {
+    const r = await shareScore(score, endless, rank);
     if (r === 'copied') this.toast('Скопійовано! Встав у чат 😉', '#9dff8a');
     else if (r === 'fail') this.toast('Не вдалося поділитися', '#ff8a8a');
   }

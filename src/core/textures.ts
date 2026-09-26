@@ -402,7 +402,84 @@ function pie(ctx: Ctx) {
   ctx.fill();
 }
 
-const ITEM_PAINTERS: Record<ItemKind, Painter> = { tomato, poop, can, egg, slipper, tp, fish, pie, gold };
+function wrench(ctx: Ctx) {
+  ctx.save();
+  ctx.translate(50, 50);
+  ctx.rotate(-Math.PI / 4);
+  const steel = linear(ctx, -8, 0, 8, 0, [[0, '#8e98a3'], [0.45, '#f4f7fa'], [1, '#76808b']]);
+  roundRect(ctx, -7, -30, 14, 60, 6);
+  fillOutlined(ctx, steel, 4);
+  // open jaw (top)
+  ctx.beginPath();
+  ctx.arc(0, -36, 15, 0, Math.PI * 2);
+  fillOutlined(ctx, radial(ctx, -4, -40, 20, [[0, '#ffffff'], [1, '#8a939e']]), 4);
+  ctx.beginPath();
+  ctx.moveTo(-6, -54);
+  ctx.lineTo(-5, -38);
+  ctx.lineTo(5, -38);
+  ctx.lineTo(6, -54);
+  ctx.closePath();
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.fill();
+  ctx.globalCompositeOperation = 'source-over';
+  // ring end (bottom)
+  ctx.beginPath();
+  ctx.arc(0, 36, 14, 0, Math.PI * 2);
+  fillOutlined(ctx, radial(ctx, -4, 32, 20, [[0, '#ffffff'], [1, '#8a939e']]), 4);
+  ctx.beginPath();
+  ctx.arc(0, 36, 6.5, 0, Math.PI * 2);
+  ctx.fillStyle = OUTLINE;
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.fillRect(-3, -24, 2.5, 48);
+  ctx.restore();
+}
+
+function fridge(ctx: Ctx) {
+  // retro fridge with magnets
+  roundRect(ctx, 24, 5, 52, 88, 12);
+  fillOutlined(ctx, linear(ctx, 24, 0, 76, 0, [[0, '#d9dfe6'], [0.3, '#ffffff'], [0.75, '#eef2f6'], [1, '#b9c2cc']]), 4);
+  ctx.strokeStyle = 'rgba(40,50,60,0.6)';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(26, 36);
+  ctx.lineTo(74, 36);
+  ctx.stroke();
+  // chrome handles
+  for (const [y0, y1] of [
+    [14, 30],
+    [44, 66],
+  ]) {
+    roundRect(ctx, 66, y0, 5, y1 - y0, 2.5);
+    fillOutlined(ctx, linear(ctx, 66, 0, 71, 0, [[0, '#ffffff'], [1, '#8a939e']]), 2);
+  }
+  // magnets
+  for (const [x, y, c] of [
+    [34, 48, '#e8323c'],
+    [44, 58, '#ffc93c'],
+    [36, 70, '#2f7fe0'],
+  ] as const) {
+    circle(ctx, x, y, 4);
+    fillOutlined(ctx, c, 1.8);
+  }
+  roundRect(ctx, 30, 14, 26, 14, 2);
+  ctx.fillStyle = '#fff6d6';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.fillStyle = '#c0392b';
+  ctx.font = '900 5px Unbounded, Rubik, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('ПИВО', 43, 23);
+  ctx.fillStyle = OUTLINE;
+  ctx.fillRect(30, 91, 8, 5);
+  ctx.fillRect(62, 91, 8, 5);
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  ctx.fillRect(29, 9, 3, 80);
+}
+
+const ITEM_PAINTERS: Record<ItemKind, Painter> = { tomato, poop, can, egg, slipper, tp, fish, pie, gold, wrench, fridge };
 
 // ------------------------------------------------------------------ splats
 interface SplatStyle {
@@ -825,6 +902,74 @@ function ui(scene: Phaser.Scene, S: number) {
     ctx.stroke();
     ctx.setLineDash([]);
   });
+  add(scene, 'van', 420, 210, S * 0.8, (ctx) => {
+    // delivery van «РОЗВОЗКА», side view facing right
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ellipse(ctx, 214, 196, 196, 12);
+    ctx.fill();
+    // cargo box
+    roundRect(ctx, 14, 30, 270, 138, 14);
+    fillOutlined(ctx, linear(ctx, 0, 30, 0, 168, [[0, '#ffffff'], [1, '#d7dde4']]), 5);
+    // cab
+    ctx.beginPath();
+    ctx.moveTo(284, 62);
+    ctx.lineTo(346, 62);
+    ctx.quadraticCurveTo(372, 64, 390, 112);
+    ctx.lineTo(404, 124);
+    ctx.quadraticCurveTo(410, 168, 396, 168);
+    ctx.lineTo(284, 168);
+    ctx.closePath();
+    fillOutlined(ctx, linear(ctx, 0, 62, 0, 168, [[0, '#ffffff'], [1, '#d0d7df']]), 5);
+    // windshield + driver
+    ctx.beginPath();
+    ctx.moveTo(300, 74);
+    ctx.lineTo(342, 74);
+    ctx.quadraticCurveTo(360, 78, 374, 112);
+    ctx.lineTo(300, 112);
+    ctx.closePath();
+    fillOutlined(ctx, linear(ctx, 300, 74, 374, 112, [[0, '#6fb6e6'], [1, '#2c6f9e']]), 3);
+    circle(ctx, 326, 96, 11);
+    ctx.fillStyle = 'rgba(20,20,30,0.75)';
+    ctx.fill();
+    // stripe + lettering
+    ctx.fillStyle = '#2f7fe0';
+    ctx.fillRect(16, 120, 268, 18);
+    ctx.fillRect(284, 128, 118, 10);
+    ctx.fillStyle = '#e8323c';
+    ctx.fillRect(16, 138, 268, 6);
+    ctx.fillStyle = '#1a2a4a';
+    ctx.font = '900 34px Unbounded, Rubik, Arial Black, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('РОЗВОЗКА', 150, 82);
+    ctx.font = '800 13px Rubik, Arial, sans-serif';
+    ctx.fillText('ШВИДКО · ДЕШЕВО · ПІД ЗАМОВЛЕННЯ', 150, 108);
+    // headlight + bumper
+    roundRect(ctx, 392, 132, 12, 12, 4);
+    ctx.fillStyle = '#ffe79a';
+    ctx.fill();
+    roundRect(ctx, 280, 162, 130, 10, 4);
+    ctx.fillStyle = '#4a5360';
+    ctx.fill();
+    // wheels
+    for (const x of [86, 330]) {
+      circle(ctx, x, 170, 26);
+      fillOutlined(ctx, '#1d1f24', 4);
+      circle(ctx, x, 170, 11);
+      ctx.fillStyle = '#9aa3ad';
+      ctx.fill();
+    }
+  });
+  add(scene, 'phone', 40, 76, S, (ctx) => {
+    roundRect(ctx, 3, 3, 34, 70, 8);
+    fillOutlined(ctx, '#15171c', 3);
+    roundRect(ctx, 7, 10, 26, 52, 4);
+    ctx.fillStyle = linear(ctx, 0, 10, 0, 62, [[0, '#3fd07a'], [1, '#1e8a4c']]);
+    ctx.fill();
+    circle(ctx, 20, 36, 7);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+  });
   add(scene, 'print', 120, 200, S, (ctx) => {
     // slipper sole print on the screen
     ctx.beginPath();
@@ -861,14 +1006,15 @@ function body(ctx: Ctx) {
     ctx.beginPath();
     ctx.moveTo(cx - 60, 26);
     ctx.bezierCurveTo(cx - 113, 28, cx - 160, 40, cx - 190, 69);
-    ctx.bezierCurveTo(cx - 211, 91, cx - 212, 133, cx - 201, 164);
-    // The abdomen pushes the shirt well past the rib cage above the table.
-    ctx.bezierCurveTo(cx - 237, 184, cx - 254, 211, cx - 254, 238);
-    ctx.bezierCurveTo(cx - 254, 288, cx - 225, 369, cx - 166, 404);
+    ctx.bezierCurveTo(cx - 214, 92, cx - 226, 138, cx - 232, 172);
+    // The abdomen pushes the shirt well past the rib cage above the table —
+    // one smooth curve, no notch between chest and belly.
+    ctx.bezierCurveTo(cx - 240, 196, cx - 254, 214, cx - 254, 240);
+    ctx.bezierCurveTo(cx - 254, 290, cx - 225, 369, cx - 166, 404);
     ctx.lineTo(cx + 166, 404);
-    ctx.bezierCurveTo(cx + 225, 369, cx + 254, 288, cx + 254, 238);
-    ctx.bezierCurveTo(cx + 254, 211, cx + 237, 184, cx + 201, 164);
-    ctx.bezierCurveTo(cx + 212, 133, cx + 211, 91, cx + 190, 69);
+    ctx.bezierCurveTo(cx + 225, 369, cx + 254, 290, cx + 254, 240);
+    ctx.bezierCurveTo(cx + 254, 214, cx + 240, 196, cx + 232, 172);
+    ctx.bezierCurveTo(cx + 226, 138, cx + 214, 92, cx + 190, 69);
     ctx.bezierCurveTo(cx + 160, 40, cx + 113, 28, cx + 60, 26);
     ctx.closePath();
   };
@@ -919,18 +1065,13 @@ function body(ctx: Ctx) {
   ctx.fillRect(0, 0, w, 420);
   ctx.fillStyle = radial(ctx, cx, 242, 260, [[0, 'rgba(13,19,38,0)'], [0.73, 'rgba(13,19,38,0.01)'], [1, 'rgba(6,9,20,0.18)']]);
   ctx.fillRect(0, 0, w, 420);
-  ctx.strokeStyle = 'rgba(8,14,30,0.22)';
-  ctx.lineWidth = 11;
-  ctx.beginPath();
-  ctx.moveTo(cx - 178, 178);
-  ctx.bezierCurveTo(cx - 100, 203, cx + 90, 203, cx + 178, 176);
-  ctx.stroke();
-  ctx.strokeStyle = 'rgba(195,209,241,0.09)';
-  ctx.lineWidth = 6;
-  ctx.beginPath();
-  ctx.moveTo(cx - 185, 202);
-  ctx.bezierCurveTo(cx - 112, 183, cx + 90, 185, cx + 181, 202);
-  ctx.stroke();
+  // soft shadow under the chest instead of a hard line across the shirt
+  ctx.save();
+  ctx.translate(cx, 192);
+  ctx.scale(1, 0.2);
+  ctx.fillStyle = radial(ctx, 0, 0, 210, [[0, 'rgba(8,14,30,0.16)'], [0.7, 'rgba(8,14,30,0.07)'], [1, 'rgba(8,14,30,0)']]);
+  ctx.fillRect(-230, -230, 460, 460);
+  ctx.restore();
   // fabric folds (soft)
   const fold = (pts: number[], wdt: number, a: number) => {
     ctx.strokeStyle = `rgba(5,8,16,${a})`;
@@ -960,8 +1101,8 @@ function body(ctx: Ctx) {
   }
   ctx.restore();
   path();
-  ctx.strokeStyle = 'rgba(8,10,18,0.85)';
-  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = 'rgba(10,14,26,0.72)';
+  ctx.lineWidth = 2.2;
   ctx.stroke();
   // neck hole: back of the collar + shadowed neck
   ellipse(ctx, cx, 34, 66, 24);
@@ -1007,155 +1148,229 @@ function collar(ctx: Ctx) {
   ctx.stroke();
 }
 
-export const ARM = { w: 180, h: 340, px: 90, py: 66, handY: 276 };
+/** Arm rig: the texture pivots at the shoulder (px, py); the hand sits `out` units
+ * outward and (handY - py) units down, so a fat arm bends around the belly. */
+export const ARM = { w: 250, h: 340, px: 95, py: 66, handY: 276, out: 48 };
 
-function armForearm(ctx: Ctx) {
-  const { px } = ARM;
-  const skinG = linear(ctx, px - 48, 0, px + 48, 0, [[0, '#edbfaa'], [0.28, '#dca895'], [0.66, SKIN], [1, '#986255']]);
-  // A fuller forearm tapers from the elbow toward the wrist.
-  ctx.beginPath();
-  ctx.moveTo(px - 46, 146);
-  ctx.bezierCurveTo(px - 51, 181, px - 43, 218, px - 34, 252);
-  ctx.quadraticCurveTo(px - 31, 264, px - 23, 268);
-  ctx.lineTo(px + 23, 268);
-  ctx.quadraticCurveTo(px + 31, 264, px + 34, 252);
-  ctx.bezierCurveTo(px + 43, 218, px + 51, 181, px + 46, 146);
-  ctx.closePath();
-  ctx.fillStyle = skinG;
+/** Smooth open path through points (Catmull-Rom → cubic Béziers). */
+function spline(ctx: Ctx, pts: [number, number][], move = true) {
+  if (move) ctx.moveTo(pts[0][0], pts[0][1]);
+  else ctx.lineTo(pts[0][0], pts[0][1]);
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[Math.min(pts.length - 1, i + 2)];
+    ctx.bezierCurveTo(p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6, p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6, p2[0], p2[1]);
+  }
+}
+
+/**
+ * One continuous arm — T-shirt sleeve over a big deltoid, thick upper arm,
+ * forearm and a meaty open hand — so nothing looks cut out and pasted on.
+ * `side` 1 is the screen-right arm (outward = +x); -1 mirrors the geometry but
+ * keeps the lighting in screen space (key light from the upper-left).
+ * The sleeve's inner edge is feathered so it melts into the torso's shoulder.
+ */
+function armPaint(ctx: Ctx, side: 1 | -1, S: number) {
+  const { w, h } = ARM;
+  const px = side === 1 ? ARM.px : w - ARM.px;
+  const X = (u: number) => px + side * u;
+  const P = (pts: [number, number][]) => pts.map(([u, y]) => [X(u), y] as [number, number]);
+  const xa = Math.min(X(-80), X(104));
+  const xb = Math.max(X(-80), X(104));
+  const edgeSkin = 'rgba(96,50,40,0.5)';
+
+  // ---- skin: upper arm → elbow → forearm → wrist (outer / inner contours)
+  const outer = P([[60, 120], [70, 160], [84, 200], [95, 232], [92, 256], [84, 270]]);
+  const inner = P([[-50, 120], [-40, 160], [-18, 204], [0, 232], [8, 256], [14, 270]]);
+  const skinPath = () => {
+    ctx.beginPath();
+    spline(ctx, outer);
+    ctx.quadraticCurveTo(X(49), 280, inner[inner.length - 1][0], inner[inner.length - 1][1]);
+    spline(ctx, [...inner].reverse(), false);
+    ctx.closePath();
+  };
+  skinPath();
+  ctx.fillStyle = linear(ctx, xa, 0, xb, 0, [[0, '#efc1ad'], [0.3, '#dfab97'], [0.62, SKIN], [0.86, '#ad7262'], [1, '#8d584a']]);
   ctx.fill();
-  ctx.strokeStyle = 'rgba(75,41,34,0.35)';
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
   ctx.save();
   ctx.clip();
-  ctx.fillStyle = radial(ctx, px - 24, 183, 76, [[0, 'rgba(255,224,207,0.28)'], [1, 'rgba(255,224,207,0)']]);
-  ctx.fillRect(px - 52, 148, 104, 120);
-  ctx.restore();
-  ctx.strokeStyle = 'rgba(115,64,52,0.18)';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(px + 25, 178);
-  ctx.bezierCurveTo(px + 18, 200, px + 19, 228, px + 25, 247);
-  ctx.stroke();
-  const r = rng(3);
-  ctx.strokeStyle = 'rgba(90,55,40,0.23)';
-  ctx.lineWidth = 1;
-  for (let i = 0; i < 48; i++) {
-    const x = px - 32 + r() * 64;
-    const y = 166 + r() * 83;
+  // rounded volume: soft highlight toward the light, shadow on the far side
+  ctx.fillStyle = radial(ctx, X(side === 1 ? 14 : 58), 196, 70, [[0, 'rgba(255,228,212,0.30)'], [1, 'rgba(255,228,212,0)']]);
+  ctx.fillRect(0, 100, w, 190);
+  ctx.fillStyle = linear(ctx, 0, 140, 0, 276, [[0, 'rgba(70,32,24,0.10)'], [0.5, 'rgba(70,32,24,0)'], [1, 'rgba(70,32,24,0.12)']]);
+  ctx.fillRect(0, 100, w, 190);
+  // soft shadow the sleeve hem casts on the skin
+  for (const [lw, a] of [[30, 0.1], [18, 0.12], [8, 0.14]] as const) {
+    ctx.strokeStyle = `rgba(60,28,22,${a})`;
+    ctx.lineWidth = lw;
     ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + 2, y + 5);
+    ctx.moveTo(X(-60), 166);
+    ctx.quadraticCurveTo(X(10), 186, X(84), 156);
     ctx.stroke();
   }
-  // open hand, palm to the camera
+  // elbow crease + forearm muscle line
+  ctx.strokeStyle = 'rgba(120,64,50,0.22)';
+  ctx.lineWidth = 2.2;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(X(22), 206);
+  ctx.quadraticCurveTo(X(36), 212, X(52), 208);
+  ctx.moveTo(X(70), 214);
+  ctx.bezierCurveTo(X(64), 232, X(66), 248, X(72), 262);
+  ctx.stroke();
+  const r = rng(side === 1 ? 3 : 4);
+  ctx.strokeStyle = 'rgba(90,55,40,0.2)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 70; i++) {
+    const u = 6 + r() * 80;
+    const y = 196 + r() * 66;
+    ctx.beginPath();
+    ctx.moveTo(X(u), y);
+    ctx.lineTo(X(u + 2), y + 5);
+    ctx.stroke();
+  }
+  ctx.restore();
+  skinPath();
+  ctx.strokeStyle = edgeSkin;
+  ctx.lineWidth = 1.8;
+  ctx.stroke();
+
+  // ---- big open hand, palm to the camera, thumb on the outer side
+  const hx = X(49);
   const hy = 284;
   const fingers: [number, number, number][] = [
-    [-25, -0.16, 37],
-    [-8, -0.05, 43],
-    [9, 0.05, 42],
-    [25, 0.16, 35],
+    [-26, -0.17, 40],
+    [-9, -0.05, 46],
+    [9, 0.05, 45],
+    [26, 0.17, 38],
   ];
   for (const [fx, a, len] of fingers) {
     ctx.save();
-    ctx.translate(px + fx, hy + 12);
-    ctx.rotate(a);
-    roundRect(ctx, -7, 0, 14, len, 7);
-    ctx.fillStyle = linear(ctx, -7, 0, 7, 0, [[0, '#e8b8a6'], [1, '#b87a69']]);
+    ctx.translate(hx + side * fx, hy + 14);
+    ctx.rotate(side * a);
+    roundRect(ctx, -8.5, 0, 17, len, 8.5);
+    ctx.fillStyle = linear(ctx, -8, 0, 8, 0, [[0, '#ebbba9'], [1, '#b67967']]);
     ctx.fill();
-    ctx.strokeStyle = 'rgba(70,35,25,0.55)';
-    ctx.lineWidth = 1.3;
+    ctx.strokeStyle = edgeSkin;
+    ctx.lineWidth = 1.4;
     ctx.stroke();
-    ctx.strokeStyle = 'rgba(90,45,35,0.35)';
+    ctx.strokeStyle = 'rgba(100,50,40,0.3)';
     ctx.beginPath();
-    ctx.moveTo(-4, len * 0.45);
-    ctx.lineTo(4, len * 0.45);
+    ctx.moveTo(-5, len * 0.45);
+    ctx.lineTo(5, len * 0.45);
     ctx.stroke();
     ctx.restore();
   }
-  // thumb (inner side)
   ctx.save();
-  ctx.translate(px + 36, hy - 6);
-  ctx.rotate(-0.75);
-  roundRect(ctx, -8, 0, 16, 37, 8);
-  ctx.fillStyle = linear(ctx, -8, 0, 8, 0, [[0, '#e0ad9b'], [1, '#b27564']]);
+  ctx.translate(hx + side * 38, hy - 8);
+  ctx.rotate(-0.78 * side);
+  roundRect(ctx, -9.5, 0, 19, 40, 9.5);
+  ctx.fillStyle = linear(ctx, -9, 0, 9, 0, [[0, '#e2af9d'], [1, '#ae7261']]);
   ctx.fill();
-  ctx.strokeStyle = 'rgba(70,35,25,0.55)';
-  ctx.lineWidth = 1.3;
-  ctx.stroke();
-  ctx.restore();
-  // palm
-  roundRect(ctx, px - 34, hy - 32, 68, 58, 22);
-  ctx.fillStyle = radial(ctx, px - 9, hy - 12, 48, [[0, '#f0c2b0'], [0.6, '#d49c8a'], [1, '#b07260']]);
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(70,35,25,0.55)';
+  ctx.strokeStyle = edgeSkin;
   ctx.lineWidth = 1.4;
   ctx.stroke();
-  ctx.strokeStyle = 'rgba(120,60,50,0.35)';
-  ctx.lineWidth = 1.4;
-  ctx.beginPath();
-  ctx.moveTo(px - 22, hy - 6);
-  ctx.quadraticCurveTo(px, hy + 2, px + 21, hy - 14);
-  ctx.moveTo(px - 19, hy + 9);
-  ctx.quadraticCurveTo(px + 2, hy + 11, px + 21, hy + 2);
-  ctx.stroke();
-  // The cuff sits in front of the forearm; the sleeve itself sits behind the
-  // torso, so its inner edge disappears naturally into the shoulder.
-  ctx.beginPath();
-  ctx.moveTo(px - 57, 144);
-  ctx.quadraticCurveTo(px, 154, px + 57, 144);
-  ctx.lineTo(px + 54, 164);
-  ctx.quadraticCurveTo(px, 173, px - 54, 164);
-  ctx.closePath();
-  ctx.fillStyle = linear(ctx, 0, 144, 0, 170, [[0, '#3b4865'], [0.48, '#2a344c'], [1, '#171d2d']]);
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(8,10,18,0.58)';
-  ctx.lineWidth = 1.8;
-  ctx.stroke();
-  ctx.strokeStyle = 'rgba(192,205,232,0.20)';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(px - 48, 149);
-  ctx.quadraticCurveTo(px, 159, px + 48, 149);
-  ctx.stroke();
-}
-
-function armSleeve(ctx: Ctx) {
-  const { px } = ARM;
-  ctx.beginPath();
-  ctx.moveTo(px - 48, 28);
-  ctx.bezierCurveTo(px - 75, 30, px - 80, 70, px - 68, 110);
-  ctx.lineTo(px - 57, 156);
-  ctx.quadraticCurveTo(px, 171, px + 57, 156);
-  ctx.lineTo(px + 68, 110);
-  ctx.bezierCurveTo(px + 80, 70, px + 75, 30, px + 48, 28);
-  ctx.bezierCurveTo(px + 16, 10, px - 16, 10, px - 48, 28);
-  ctx.closePath();
-  ctx.fillStyle = linear(ctx, px - 75, 0, px + 75, 0, [[0, '#45516c'], [0.33, '#333d57'], [0.72, '#263047'], [1, '#151b2b']]);
-  ctx.fill();
-  ctx.save();
-  ctx.clip();
-  ctx.fillStyle = radial(ctx, px - 32, 67, 115, [[0, 'rgba(208,219,244,0.22)'], [0.5, 'rgba(208,219,244,0.05)'], [1, 'rgba(0,0,0,0)']]);
-  ctx.fillRect(0, 0, ARM.w, 170);
-  ctx.fillStyle = linear(ctx, 0, 28, 0, 166, [[0, 'rgba(255,255,255,0.07)'], [0.55, 'rgba(0,0,0,0)'], [1, 'rgba(0,0,0,0.22)']]);
-  ctx.fillRect(0, 0, ARM.w, 170);
   ctx.restore();
-  ctx.strokeStyle = 'rgba(8,10,18,0.58)';
+  roundRect(ctx, hx - 38, hy - 36, 76, 64, 26);
+  ctx.fillStyle = radial(ctx, hx - 10, hy - 14, 54, [[0, '#f2c5b3'], [0.6, '#d69e8b'], [1, '#ae705e']]);
+  ctx.fill();
+  ctx.strokeStyle = edgeSkin;
   ctx.lineWidth = 1.6;
   ctx.stroke();
-  ctx.strokeStyle = 'rgba(186,199,232,0.16)';
-  ctx.lineWidth = 4;
-  ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(120,60,50,0.3)';
+  ctx.lineWidth = 1.6;
   ctx.beginPath();
-  ctx.moveTo(px - 48, 43);
-  ctx.bezierCurveTo(px - 63, 63, px - 67, 87, px - 60, 112);
+  ctx.moveTo(hx - 24 * side, hy - 8);
+  ctx.quadraticCurveTo(hx, hy + 2, hx + 23 * side, hy - 16);
+  ctx.moveTo(hx - 21 * side, hy + 9);
+  ctx.quadraticCurveTo(hx + 2 * side, hy + 12, hx + 23 * side, hy + 2);
   ctx.stroke();
-  ctx.strokeStyle = 'rgba(9,13,25,0.32)';
-  ctx.lineWidth = 5;
-  ctx.beginPath();
-  ctx.moveTo(px + 58, 82);
-  ctx.quadraticCurveTo(px + 32, 108, px + 16, 124);
-  ctx.stroke();
+
+  // ---- sleeve: a thick tube that grows out of the torso's own shoulder. Its top
+  // end fades in from the joint, so there is no cap, disc or cut line at any arm
+  // angle — the torso provides the shoulder, the sleeve just emerges from it.
+  const cy = ARM.py;
+  const { c: sc, ctx: sx } = canvas(w * S, h * S);
+  sx.scale(S, S);
+  const innerSide = P([[-54, 162], [-58, 122], [-57, 90], [-56, cy], [-50, cy - 30]]);
+  const outerSide = P([[50, cy - 30], [56, cy], [60, 90], [68, 116], [75, 140], [78, 154]]);
+  const sleevePath = (g: Ctx) => {
+    g.beginPath();
+    spline(g, innerSide);
+    g.quadraticCurveTo(X(0), cy - 44, outerSide[0][0], outerSide[0][1]);
+    spline(g, outerSide, false);
+    g.quadraticCurveTo(X(12), 182, innerSide[0][0], innerSide[0][1]);
+    g.closePath();
+  };
+  sleevePath(sx);
+  // lit like the torso at rest: the screen-left arm catches the key light,
+  // the screen-right one is in shade with a warm sunset rim
+  sx.fillStyle = side === 1 ? '#2f3851' : '#36405b';
+  sx.fill();
+  sx.save();
+  sx.clip();
+  sx.fillStyle = linear(sx, xa, 0, xb, 0,
+    side === 1
+      ? [[0, 'rgba(205,216,244,0.07)'], [0.4, 'rgba(205,216,244,0.05)'], [0.8, 'rgba(8,12,26,0.18)'], [1, 'rgba(8,12,26,0.34)']]
+      : [[0, 'rgba(8,12,26,0.32)'], [0.22, 'rgba(205,216,244,0.1)'], [0.55, 'rgba(205,216,244,0.06)'], [1, 'rgba(8,12,26,0.12)']],
+  );
+  sx.fillRect(0, 0, w, 200);
+  if (side === 1) {
+    sx.fillStyle = linear(sx, X(50), 0, X(80), 0, [[0, 'rgba(255,160,90,0)'], [1, 'rgba(255,170,100,0.22)']]);
+    sx.fillRect(0, 0, w, 200);
+  }
+  sx.fillStyle = linear(sx, 0, 104, 0, 182, [[0, 'rgba(0,0,0,0)'], [1, 'rgba(6,9,20,0.22)']]);
+  sx.fillRect(0, 0, w, 200);
+  // soft pull wrinkles toward the armpit and the knit
+  sx.strokeStyle = 'rgba(6,10,22,0.12)';
+  sx.lineWidth = 4;
+  sx.lineCap = 'round';
+  sx.beginPath();
+  sx.moveTo(X(-52), 118);
+  sx.quadraticCurveTo(X(-32), 128, X(-8), 130);
+  sx.moveTo(X(-48), 138);
+  sx.quadraticCurveTo(X(-30), 146, X(-6), 148);
+  sx.stroke();
+  const k = rng(side === 1 ? 41 : 42);
+  for (let i = 0; i < 520; i++) {
+    sx.fillStyle = k() > 0.5 ? 'rgba(255,255,255,0.035)' : 'rgba(0,0,0,0.07)';
+    sx.fillRect(X(-80 + k() * 170), k() * 190, 1.6, 1.6);
+  }
+  // hem: a turned-up band with a soft highlight
+  sx.strokeStyle = 'rgba(6,10,22,0.3)';
+  sx.lineWidth = 7;
+  sx.beginPath();
+  sx.moveTo(X(-58), 150);
+  sx.quadraticCurveTo(X(12), 170, X(84), 140);
+  sx.stroke();
+  sx.strokeStyle = 'rgba(190,204,238,0.16)';
+  sx.lineWidth = 2.4;
+  sx.beginPath();
+  sx.moveTo(X(-56), 144);
+  sx.quadraticCurveTo(X(12), 163, X(83), 134);
+  sx.stroke();
+  sx.restore();
+  // outline the tube's sides and hem (silhouettes); the top end has none
+  sx.beginPath();
+  spline(sx, outerSide);
+  sx.quadraticCurveTo(X(12), 182, innerSide[0][0], innerSide[0][1]);
+  spline(sx, innerSide, false);
+  sx.strokeStyle = 'rgba(10,14,28,0.45)';
+  sx.lineWidth = 1.6;
+  sx.lineJoin = 'round';
+  sx.stroke();
+  // fade the whole top end in from the joint
+  sx.save();
+  sx.globalCompositeOperation = 'destination-in';
+  sx.fillStyle = linear(sx, 0, cy - 14, 0, cy + 30, [[0, 'rgba(0,0,0,0)'], [0.55, 'rgba(0,0,0,0.7)'], [1, 'rgba(0,0,0,1)']]);
+  sx.fillRect(0, 0, w, h);
+  sx.restore();
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.drawImage(sc, 0, 0);
+  ctx.restore();
 }
 
 // ------------------------------------------------------------------ colleagues
@@ -1383,7 +1598,7 @@ function sign(ctx: Ctx) {
   ctx.restore();
 }
 
-function icon(ctx: Ctx, kind: 'gear' | 'trophy' | 'help' | 'back' | 'crown' | 'shades') {
+function icon(ctx: Ctx, kind: 'gear' | 'trophy' | 'help' | 'back' | 'crown') {
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   if (kind === 'gear') {
@@ -1469,32 +1684,6 @@ function icon(ctx: Ctx, kind: 'gear' | 'trophy' | 'help' | 'back' | 'crown' | 's
       circle(ctx, x, y, 6);
       fillOutlined(ctx, '#fff3a0', 3, '#3a2600');
     }
-  } else if (kind === 'shades') {
-    ctx.fillStyle = '#0b0b10';
-    ctx.beginPath();
-    ctx.moveTo(4, 30);
-    ctx.lineTo(96, 30);
-    ctx.lineTo(96, 38);
-    ctx.lineTo(90, 38);
-    ctx.bezierCurveTo(88, 66, 60, 66, 56, 40);
-    ctx.lineTo(44, 40);
-    ctx.bezierCurveTo(40, 66, 12, 66, 10, 38);
-    ctx.lineTo(4, 38);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = 'rgba(120,170,255,0.5)';
-    ctx.beginPath();
-    ctx.moveTo(16, 38);
-    ctx.lineTo(30, 38);
-    ctx.lineTo(20, 52);
-    ctx.closePath();
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(62, 38);
-    ctx.lineTo(76, 38);
-    ctx.lineTo(66, 52);
-    ctx.closePath();
-    ctx.fill();
   }
 }
 
@@ -1512,8 +1701,8 @@ export function buildTextures(scene: Phaser.Scene) {
   ui(scene, S);
   add(scene, 'body', BODY.w, BODY.h + 10, S, body);
   add(scene, 'collar', 160, 70, S, collar);
-  add(scene, 'arm-sleeve', ARM.w, ARM.h, S, armSleeve);
-  add(scene, 'arm-forearm', ARM.w, ARM.h, S, armForearm);
+  add(scene, 'arm-r', ARM.w, ARM.h, S, (ctx) => armPaint(ctx, 1, S));
+  add(scene, 'arm-l', ARM.w, ARM.h, S, (ctx) => armPaint(ctx, -1, S));
   for (let i = 0; i < CREW.length; i++) {
     add(scene, 'npc' + i, 220, 300, S * 0.8, (ctx) => npcBack(ctx, i));
     add(scene, 'npcarm' + i, 88, 180, S * 0.8, (ctx) => npcArm(ctx, i));
@@ -1523,14 +1712,16 @@ export function buildTextures(scene: Phaser.Scene) {
   add(scene, 'crowd_b', 460, 330, S * 0.55, (ctx) => crowdGroup(ctx, 9, 5, 460, 330, 80));
   add(scene, 'crowd_c', 900, 300, S * 0.5, (ctx) => crowdGroup(ctx, 13, 11, 900, 300, 50));
   add(scene, 'sign', 310, 124, S, sign);
-  for (const k of ['gear', 'trophy', 'help', 'back', 'crown', 'shades'] as const) add(scene, 'ic_' + k, 100, 100, S, (ctx) => icon(ctx, k));
+  for (const k of ['gear', 'trophy', 'help', 'back', 'crown'] as const) add(scene, 'ic_' + k, 100, 100, S, (ctx) => icon(ctx, k));
 }
 
 /** Round-select thumbnails cut from the real photo (rounded, with per-round mood overlays). */
 export function buildThumbs(scene: Phaser.Scene) {
-  const src = scene.textures.get('sergii-head').getSourceImage() as HTMLImageElement;
+  const face = (k: string) => scene.textures.get(scene.textures.exists(k) ? k : 'sergii-head').getSourceImage() as HTMLImageElement;
   const S = L.TS;
   const make = (key: string, mood: number) => {
+    // calm → smug → plain → angry: the real photo expressions, never sunglasses
+    const src = face(mood <= 1 ? 'sergii-head-happy' : mood >= 4 ? 'sergii-head-angry' : 'sergii-head');
     if (scene.textures.exists(key)) return;
     const w = 150;
     const h = 130;
@@ -1547,13 +1738,6 @@ export function buildThumbs(scene: Phaser.Scene) {
     if (mood >= 5) {
       ctx.fillStyle = 'rgba(255,40,30,0.35)';
       ctx.fillRect(0, 0, w, h);
-    }
-    if (mood === 4 || mood === 6) {
-      ctx.save();
-      ctx.translate(18, 18);
-      ctx.scale(1.15, 1.15);
-      icon(ctx, 'shades');
-      ctx.restore();
     }
     if (mood >= 3 && mood !== 6) {
       ctx.save();

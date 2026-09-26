@@ -3,7 +3,7 @@ import { L, hudTop } from '../core/layout';
 import { audio } from '../core/audio';
 import { persist, resetProgress, save } from '../core/save';
 import { fmt, pick, rand } from '../core/util';
-import { LINES } from '../data/config';
+import { LINES, SIGNATURE, isSignature } from '../data/config';
 import { Stage } from '../game/Stage';
 import { Sergii } from '../game/Sergii';
 import { Speech } from '../game/Speech';
@@ -93,6 +93,8 @@ export class MenuScene extends Phaser.Scene {
   fx!: Fx;
   private t = 0;
   private lookT = 2;
+  private pokes = 0;
+  private lastPoke = -9;
   private starting = false;
   private modal: Modal | null = null;
 
@@ -103,6 +105,8 @@ export class MenuScene extends Phaser.Scene {
   create() {
     this.starting = false;
     this.modal = null;
+    this.pokes = 0;
+    this.lastPoke = -9;
     const cam = this.cameras.main;
     cam.setZoom(L.Z).centerOn(L.W / 2, L.H / 2);
     cam.setBackgroundColor('#1a1020');
@@ -187,7 +191,24 @@ export class MenuScene extends Phaser.Scene {
       audio.slap();
       const hc = this.sergii.headCenter();
       this.fx.ring(this.stage.px(hc.x), this.stage.py(hc.y), 0xffffff, 0.8);
-      this.say(pick(LINES.poke));
+      // poke him too often and he escalates
+      const now = this.t;
+      this.pokes = now - this.lastPoke < 2.5 ? this.pokes + 1 : 1;
+      this.lastPoke = now;
+      if (this.pokes === 5) {
+        this.sergii.angryFor(3);
+        this.sergii.shake = 0.6;
+        this.time.delayedCall(900, () => (this.sergii.shake = 0));
+        this.say('Ще раз — і голову об холодильник кину.');
+      } else if (this.pokes === 9) {
+        this.sergii.angryFor(4);
+        this.sergii.tintTarget = 0.5;
+        this.fx.shake(0.5);
+        audio.rage();
+        this.say('Все. Це вже особисте. Натискай «Приєднатися».');
+        this.time.delayedCall(2200, () => (this.sergii.tintTarget = 0));
+      } else if (this.pokes < 5) this.say(pick(LINES.poke));
+      else this.sergii.angryFor(1.5);
     });
 
     audio.startMusic('menu');
@@ -201,7 +222,7 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private say(s: string) {
-    this.speech.say(s);
+    this.speech.say(s, isSignature(s));
   }
 
   private toggle(label: string, on: boolean) {
@@ -287,7 +308,7 @@ export class MenuScene extends Phaser.Scene {
 
   private records() {
     if (this.modal) return;
-    const m = new Modal(this, 'РЕКОРДИ', 560, () => (this.modal = null));
+    const m = new Modal(this, 'РЕКОРДИ', 900, () => (this.modal = null));
     this.modal = m;
     const W = L.W;
     const rows: [string, string][] = [
@@ -308,11 +329,22 @@ export class MenuScene extends Phaser.Scene {
         this.add.text(W / 2 + 250, y, v, textStyle(22, '#ffd23f', { strokeThickness: 0 })).setOrigin(1, 0.5),
       ]);
     });
+    // phrase collection
+    const y0 = m.top + 130 + rows.length * 66 + 18;
+    m.add(this.add.text(W / 2, y0, `ФРАЗИ СЕРГІЯ  ${save.heard.length} / ${SIGNATURE.length}`, textStyle(22, '#ffffff', { strokeThickness: 0 })).setOrigin(0.5));
+    SIGNATURE.forEach((ph, i) => {
+      const got = save.heard.includes(i);
+      m.add(
+        this.add
+          .text(W / 2, y0 + 44 + i * 40, got ? `«${ph.replace(/[.!]+$/, '')}»` : '???  (кинь ще — почуєш)', ui(got ? 20 : 18, got ? '#ffe066' : '#8a7a99', got ? '800' : '700'))
+          .setOrigin(0.5),
+      );
+    });
   }
 
   private rules() {
     if (this.modal) return;
-    const m = new Modal(this, 'ПРАВИЛА', 820, () => (this.modal = null));
+    const m = new Modal(this, 'ПРАВИЛА', 980, () => (this.modal = null));
     this.modal = m;
     const W = L.W;
     const items: [string, string][] = [
@@ -322,10 +354,12 @@ export class MenuScene extends Phaser.Scene {
       ['🔥', 'Влучай підряд — росте комбо і множник очок.'],
       ['😤', 'Опусти «Терпіння Сергія» до нуля. 3 серця на раунд.'],
       ['🥫', 'Банки він може зловити. Це погана ідея.'],
+      ['📣', 'Події: червона стрічка підкаже, що робити.'],
+      ['💬', 'Збирай фрази Сергія — вони в «Рекордах».'],
       ['👑', 'Пройди 5 раундів — відкриється секретний режим.'],
     ];
     items.forEach(([ic, txt], i) => {
-      const y = m.top + 130 + i * 86;
+      const y = m.top + 124 + i * 82;
       m.add([
         this.add.text(W / 2 - 250, y, ic, ui(34)).setOrigin(0.5),
         this.add.text(W / 2 - 210, y, txt, ui(20, '#ffffff', '700', { wordWrap: { width: 460 }, lineSpacing: 2 })).setOrigin(0, 0.5),
