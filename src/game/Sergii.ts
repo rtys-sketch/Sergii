@@ -30,6 +30,7 @@ const HEAD_RY = 345;
 
 const NECK_Y = 194; // world Y of the neck (eyes on the horizon)
 const HIP_DY = BODY.h - BODY.neckY; // from neck to hips
+const FOREARM_OUT = 48; // elbow offset from the shoulder, in texture units
 
 interface Decal {
   img: Phaser.GameObjects.Image;
@@ -59,7 +60,7 @@ export class Sergii {
   armR = new Spring(0.12, 0.12, 120, 14);
   armL = new Spring(-0.12, -0.12, 120, 14);
   armRS = new Spring(1, 1, 200, 16);
-  scaleAll = new Spring(1, 1, 120, 14);
+  scaleAll = new Spring(0.9, 0.9, 120, 14);
 
   t = 0;
   moodLevel = 0; // 0..4
@@ -83,6 +84,10 @@ export class Sergii {
   headAngry: Phaser.GameObjects.Image;
   headShadow: Phaser.GameObjects.Image;
   collar: Phaser.GameObjects.Image;
+  armLBack: Phaser.GameObjects.Image;
+  armRBack: Phaser.GameObjects.Image;
+  armLFront: Phaser.GameObjects.Image;
+  armRFront: Phaser.GameObjects.Image;
   armLImg: Phaser.GameObjects.Image;
   armRImg: Phaser.GameObjects.Image;
   held: Phaser.GameObjects.Image;
@@ -106,8 +111,12 @@ export class Sergii {
   handL = { x: 0, y: 0 };
 
   constructor(public scene: Phaser.Scene, public stage: Stage) {
+    this.armLBack = scene.add.image(0, 0, 'arm-sleeve').setDepth(19.7).setOrigin(ARM.px / ARM.w, ARM.py / ARM.h).setFlipX(true);
+    this.armRBack = scene.add.image(0, 0, 'arm-sleeve').setDepth(19.7).setOrigin(ARM.px / ARM.w, ARM.py / ARM.h);
     this.body = scene.add.image(0, 0, 'body').setDepth(20);
     this.body.setOrigin(0.5, BODY.h / (BODY.h + 10));
+    this.armLFront = scene.add.image(0, 0, 'arm-sleeve').setDepth(20.3).setOrigin(ARM.px / ARM.w, ARM.py / ARM.h).setFlipX(true).setAlpha(0);
+    this.armRFront = scene.add.image(0, 0, 'arm-sleeve').setDepth(20.3).setOrigin(ARM.px / ARM.w, ARM.py / ARM.h).setAlpha(0);
     this.headShadow = scene.add.image(0, 0, 'sergii-head').setDepth(20.5).setTintFill(0x000000).setAlpha(0.25);
     this.headShadow.setOrigin(PIVOT_X / HEAD_W, PIVOT_Y / HEAD_H);
     this.head = scene.add.image(0, 0, 'sergii-head').setDepth(21);
@@ -115,8 +124,8 @@ export class Sergii {
     this.headHappy = scene.add.image(0, 0, 'sergii-head-happy').setDepth(21.05).setOrigin(PIVOT_X / HEAD_W, PIVOT_Y / HEAD_H).setAlpha(0);
     this.headAngry = scene.add.image(0, 0, 'sergii-head-angry').setDepth(21.1).setOrigin(PIVOT_X / HEAD_W, PIVOT_Y / HEAD_H).setAlpha(0);
     this.collar = scene.add.image(0, 0, 'collar').setDepth(21.5).setOrigin(0.5, 8 / 70);
-    this.armLImg = scene.add.image(0, 0, 'arm').setDepth(22).setOrigin(ARM.px / ARM.w, ARM.py / ARM.h).setFlipX(true);
-    this.armRImg = scene.add.image(0, 0, 'arm').setDepth(22).setOrigin(ARM.px / ARM.w, ARM.py / ARM.h);
+    this.armLImg = scene.add.image(0, 0, 'arm-forearm').setDepth(22).setOrigin(ARM.px / ARM.w, ARM.py / ARM.h).setFlipX(true);
+    this.armRImg = scene.add.image(0, 0, 'arm-forearm').setDepth(22).setOrigin(ARM.px / ARM.w, ARM.py / ARM.h);
     this.held = scene.add.image(0, 0, 'it_can').setDepth(23).setVisible(false);
     this.lid = scene.add.image(0, 0, 'lid').setDepth(24).setVisible(false);
     this.anger = scene.add.image(0, 0, 'anger').setDepth(23).setVisible(false);
@@ -170,7 +179,9 @@ export class Sergii {
     if ((d.x * d.x) / (rx * rx) + (d.y * d.y) / (ry * ry) <= 1) return 'head';
     const bodyTop = this.neck.y + 22;
     const bx = this.neck.x + Math.sin(this.lean.x) * 120;
-    if (Y > bodyTop && Y < TABLE_Y + 4 && Math.abs(X - bx) < 188 * this.scaleAll.x + r * 0.4) return 'body';
+    const belly = clamp((Y - this.neck.y - 115 * this.scaleAll.x) / (125 * this.scaleAll.x), 0, 1);
+    const bodyRadius = lerp(188, 242, belly) * this.scaleAll.x;
+    if (Y > bodyTop && Y < TABLE_Y + 4 && Math.abs(X - bx) < bodyRadius + r * 0.4) return 'body';
     return null;
   }
 
@@ -292,7 +303,7 @@ export class Sergii {
     const sh = side === 1 ? this.shoulderR : this.shoulderL;
     const vx = tx - sh.x;
     const vy = ty - sh.y;
-    return Math.atan2(-vx, vy) - this.lean.x;
+    return Math.atan2(-vx, vy) + Math.atan2(side * FOREARM_OUT, ARM.handY - ARM.py) - this.lean.x;
   }
 
   // ------------------------------------------------------------ frame
@@ -356,8 +367,8 @@ export class Sergii {
     this.collar.setPosition(p.px(this.neck.x + col.x), p.py(this.neck.y + col.y)).setRotation(leanA).setScale(ts * sc * 0.95);
 
     // arms
-    const shOff = 178 * sc;
-    const shY = 58 * sc;
+    const shOff = 163 * sc;
+    const shY = 68 * sc;
     const r1 = this.rot(shOff, shY, leanA);
     const r2 = this.rot(-shOff, shY, leanA);
     this.shoulderR.x = this.neck.x + r1.x;
@@ -367,14 +378,21 @@ export class Sergii {
     const aR = leanA + this.armR.x;
     const aL = leanA + this.armL.x;
     const armLen = (ARM.handY - ARM.py) * sc;
-    const hR = this.rot(0, armLen * this.armRS.x, aR);
-    const hL = this.rot(0, armLen, aL);
+    const elbowOut = FOREARM_OUT * sc;
+    const frontR = this.rot(elbowOut, 0, aR);
+    const frontL = this.rot(-elbowOut, 0, aL);
+    const hR = this.rot(elbowOut, armLen * this.armRS.x, aR);
+    const hL = this.rot(-elbowOut, armLen, aL);
     this.handR.x = this.shoulderR.x + hR.x;
     this.handR.y = this.shoulderR.y + hR.y;
     this.handL.x = this.shoulderL.x + hL.x;
     this.handL.y = this.shoulderL.y + hL.y;
-    this.armRImg.setPosition(p.px(this.shoulderR.x), p.py(this.shoulderR.y)).setRotation(aR).setScale(ts * sc, ts * sc * this.armRS.x);
-    this.armLImg.setPosition(p.px(this.shoulderL.x), p.py(this.shoulderL.y)).setRotation(aL).setScale(ts * sc);
+    this.armRBack.setPosition(p.px(this.shoulderR.x), p.py(this.shoulderR.y)).setRotation(aR).setScale(ts * sc, ts * sc * this.armRS.x);
+    this.armLBack.setPosition(p.px(this.shoulderL.x), p.py(this.shoulderL.y)).setRotation(aL).setScale(ts * sc);
+    this.armRFront.setPosition(this.armRBack.x, this.armRBack.y).setRotation(aR).setScale(this.armRBack.scaleX, this.armRBack.scaleY).setAlpha(clamp((this.armR.x - 0.18) / 0.34, 0, 1));
+    this.armLFront.setPosition(this.armLBack.x, this.armLBack.y).setRotation(aL).setScale(this.armLBack.scaleX, this.armLBack.scaleY).setAlpha(clamp((-this.armL.x - 0.18) / 0.34, 0, 1));
+    this.armRImg.setPosition(p.px(this.shoulderR.x + frontR.x), p.py(this.shoulderR.y + frontR.y)).setRotation(aR).setScale(ts * sc, ts * sc * this.armRS.x);
+    this.armLImg.setPosition(p.px(this.shoulderL.x + frontL.x), p.py(this.shoulderL.y + frontL.y)).setRotation(aL).setScale(ts * sc);
 
     if (this.held.visible) {
       this.held.setPosition(p.px(this.handR.x), p.py(this.handR.y - 18));
@@ -483,6 +501,6 @@ export class Sergii {
   }
 
   setVisible(v: boolean) {
-    for (const o of [this.body, this.head, this.headShadow, this.collar, this.armLImg, this.armRImg]) o.setVisible(v);
+    for (const o of [this.body, this.head, this.headHappy, this.headAngry, this.headShadow, this.collar, this.armLBack, this.armRBack, this.armLFront, this.armRFront, this.armLImg, this.armRImg]) o.setVisible(v);
   }
 }

@@ -848,37 +848,38 @@ function ui(scene: Phaser.Scene, S: number) {
   });
 }
 
-// ------------------------------------------------------------------ Sergii's cartoon body
+// ------------------------------------------------------------------ Sergii's shaded torso and articulated arms
 export const SHIRT = '#27304a';
 export const SKIN = '#d6a293';
 
-export const BODY = { w: 460, h: 400, neckX: 230, neckY: 40 };
+export const BODY = { w: 520, h: 400, neckX: 260, neckY: 40 };
 
 function body(ctx: Ctx) {
   const { w } = BODY;
   const cx = w / 2;
   const path = () => {
     ctx.beginPath();
-    ctx.moveTo(cx - 58, 26);
-    ctx.bezierCurveTo(cx - 110, 34, cx - 150, 44, cx - 178, 62);
-    ctx.bezierCurveTo(cx - 214, 84, cx - 226, 124, cx - 222, 176);
-    ctx.lineTo(cx - 214, 320);
-    ctx.bezierCurveTo(cx - 210, 372, cx - 186, 400, cx - 130, 404);
-    ctx.lineTo(cx + 130, 404);
-    ctx.bezierCurveTo(cx + 186, 400, cx + 210, 372, cx + 214, 320);
-    ctx.lineTo(cx + 222, 176);
-    ctx.bezierCurveTo(cx + 226, 124, cx + 214, 84, cx + 178, 62);
-    ctx.bezierCurveTo(cx + 150, 44, cx + 110, 34, cx + 58, 26);
+    ctx.moveTo(cx - 60, 26);
+    ctx.bezierCurveTo(cx - 113, 28, cx - 160, 40, cx - 190, 69);
+    ctx.bezierCurveTo(cx - 211, 91, cx - 212, 133, cx - 201, 164);
+    // The abdomen pushes the shirt well past the rib cage above the table.
+    ctx.bezierCurveTo(cx - 237, 184, cx - 254, 211, cx - 254, 238);
+    ctx.bezierCurveTo(cx - 254, 288, cx - 225, 369, cx - 166, 404);
+    ctx.lineTo(cx + 166, 404);
+    ctx.bezierCurveTo(cx + 225, 369, cx + 254, 288, cx + 254, 238);
+    ctx.bezierCurveTo(cx + 254, 211, cx + 237, 184, cx + 201, 164);
+    ctx.bezierCurveTo(cx + 212, 133, cx + 211, 91, cx + 190, 69);
+    ctx.bezierCurveTo(cx + 160, 40, cx + 113, 28, cx + 60, 26);
     ctx.closePath();
   };
   // soft contact shadow
   ctx.save();
   path();
-  ctx.fillStyle = linear(ctx, 0, 20, 0, 404, [[0, '#2f3852'], [0.45, '#232a3e'], [1, '#161b29']]);
+  ctx.fillStyle = linear(ctx, 0, 20, 0, 404, [[0, '#39445f'], [0.33, '#2b344d'], [0.73, '#242c40'], [1, '#171d2b']]);
   ctx.fill();
   ctx.clip();
   // key light from upper-left, warm rim from the right (string lights / sunset)
-  ctx.fillStyle = radial(ctx, cx - 120, 110, 260, [[0, 'rgba(160,175,215,0.22)'], [1, 'rgba(160,175,215,0)']]);
+  ctx.fillStyle = radial(ctx, cx - 120, 110, 260, [[0, 'rgba(160,175,215,0.20)'], [1, 'rgba(160,175,215,0)']]);
   ctx.fillRect(0, 0, w, 420);
   ctx.fillStyle = linear(ctx, 0, 0, w, 0, [
     [0, 'rgba(0,0,0,0.45)'],
@@ -888,23 +889,48 @@ function body(ctx: Ctx) {
     [1, 'rgba(255,170,100,0.35)'],
   ]);
   ctx.fillRect(0, 0, w, 420);
+  // Rounded deltoids under the shirt connect the moving sleeves to the chest.
+  for (const side of [-1, 1]) {
+    ctx.fillStyle = radial(ctx, cx + side * 151, 95, 105, [
+      [0, side < 0 ? 'rgba(187,201,235,0.24)' : 'rgba(117,137,181,0.16)'],
+      [0.57, 'rgba(105,125,167,0.08)'],
+      [1, 'rgba(8,12,25,0)'],
+    ]);
+    ctx.fillRect(cx + side * 151 - 110, 16, 220, 196);
+  }
   // trapezius / shoulder highlight ridges
-  ctx.strokeStyle = 'rgba(190,200,235,0.13)';
-  ctx.lineWidth = 16;
+  ctx.strokeStyle = 'rgba(190,200,235,0.19)';
+  ctx.lineWidth = 12;
   ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.moveTo(cx - 70, 40);
-  ctx.bezierCurveTo(cx - 130, 48, cx - 170, 62, cx - 196, 100);
-  ctx.moveTo(cx + 70, 40);
-  ctx.bezierCurveTo(cx + 130, 48, cx + 170, 62, cx + 196, 100);
+  ctx.moveTo(cx - 70, 39);
+  ctx.bezierCurveTo(cx - 126, 47, cx - 162, 63, cx - 192, 99);
+  ctx.moveTo(cx + 70, 39);
+  ctx.bezierCurveTo(cx + 126, 47, cx + 162, 63, cx + 192, 99);
   ctx.stroke();
-  // chest mass + belly
-  ctx.fillStyle = radial(ctx, cx - 70, 170, 120, [[0, 'rgba(170,185,225,0.10)'], [1, 'rgba(170,185,225,0)']]);
+  // Soft pectoral and belly volumes, lit consistently with the photo head.
+  ctx.fillStyle = radial(ctx, cx - 80, 172, 142, [[0, 'rgba(187,203,238,0.17)'], [0.6, 'rgba(133,155,205,0.06)'], [1, 'rgba(170,185,225,0)']]);
   ctx.fillRect(0, 0, w, 420);
-  ctx.fillStyle = radial(ctx, cx + 70, 170, 120, [[0, 'rgba(170,185,225,0.06)'], [1, 'rgba(170,185,225,0)']]);
+  ctx.fillStyle = radial(ctx, cx + 76, 178, 140, [[0, 'rgba(170,185,225,0.11)'], [1, 'rgba(170,185,225,0)']]);
   ctx.fillRect(0, 0, w, 420);
-  ctx.fillStyle = radial(ctx, cx, 330, 200, [[0, 'rgba(170,185,225,0.08)'], [0.7, 'rgba(0,0,0,0)'], [1, 'rgba(0,0,0,0.25)']]);
-  ctx.fillRect(0, 200, w, 220);
+  // The belly is the broadest visible mass, with a top-facing highlight and
+  // darker curved sides. It stays visible above the table edge.
+  ctx.fillStyle = radial(ctx, cx - 45, 225, 280, [[0, 'rgba(205,219,247,0.42)'], [0.44, 'rgba(154,178,226,0.24)'], [0.78, 'rgba(76,92,141,0.04)'], [1, 'rgba(6,10,25,0)']]);
+  ctx.fillRect(0, 0, w, 420);
+  ctx.fillStyle = radial(ctx, cx, 242, 260, [[0, 'rgba(13,19,38,0)'], [0.73, 'rgba(13,19,38,0.01)'], [1, 'rgba(6,9,20,0.18)']]);
+  ctx.fillRect(0, 0, w, 420);
+  ctx.strokeStyle = 'rgba(8,14,30,0.22)';
+  ctx.lineWidth = 11;
+  ctx.beginPath();
+  ctx.moveTo(cx - 178, 178);
+  ctx.bezierCurveTo(cx - 100, 203, cx + 90, 203, cx + 178, 176);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(195,209,241,0.09)';
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.moveTo(cx - 185, 202);
+  ctx.bezierCurveTo(cx - 112, 183, cx + 90, 185, cx + 181, 202);
+  ctx.stroke();
   // fabric folds (soft)
   const fold = (pts: number[], wdt: number, a: number) => {
     ctx.strokeStyle = `rgba(5,8,16,${a})`;
@@ -920,12 +946,12 @@ function body(ctx: Ctx) {
     ctx.bezierCurveTo(pts[2] - 4, pts[3] - 5, pts[4] - 4, pts[5] - 5, pts[6] - 4, pts[7] - 5);
     ctx.stroke();
   };
-  fold([cx - 196, 150, cx - 150, 190, cx - 110, 230, cx - 60, 250], 7, 0.28);
-  fold([cx + 196, 150, cx + 150, 190, cx + 110, 230, cx + 60, 250], 7, 0.28);
-  fold([cx - 150, 212, cx - 100, 226, cx - 50, 226, cx - 16, 214], 6, 0.3);
-  fold([cx + 150, 212, cx + 100, 226, cx + 50, 226, cx + 16, 214], 6, 0.3);
-  fold([cx - 180, 300, cx - 120, 318, cx - 60, 322, cx - 10, 316], 5, 0.2);
-  fold([cx + 170, 290, cx + 120, 312, cx + 70, 318, cx + 20, 318], 5, 0.2);
+  fold([cx - 185, 142, cx - 152, 181, cx - 130, 194, cx - 102, 199], 5, 0.16);
+  fold([cx + 185, 142, cx + 152, 181, cx + 130, 194, cx + 102, 199], 5, 0.16);
+  fold([cx - 224, 241, cx - 190, 222, cx - 156, 229, cx - 127, 254], 5, 0.21);
+  fold([cx + 224, 241, cx + 190, 222, cx + 156, 229, cx + 127, 254], 5, 0.21);
+  fold([cx - 205, 316, cx - 122, 326, cx - 60, 331, cx - 8, 321], 5, 0.18);
+  fold([cx + 205, 316, cx + 122, 326, cx + 60, 331, cx + 8, 321], 5, 0.18);
   // knit texture
   const r = rng(99);
   for (let i = 0; i < 2200; i++) {
@@ -981,48 +1007,61 @@ function collar(ctx: Ctx) {
   ctx.stroke();
 }
 
-export const ARM = { w: 140, h: 300, px: 70, py: 44, handY: 250 };
+export const ARM = { w: 180, h: 340, px: 90, py: 66, handY: 276 };
 
-function arm(ctx: Ctx) {
+function armForearm(ctx: Ctx) {
   const { px } = ARM;
-  const skinG = linear(ctx, px - 30, 0, px + 30, 0, [[0, '#e2b09e'], [0.45, SKIN], [1, '#9c6556']]);
-  // forearm
+  const skinG = linear(ctx, px - 48, 0, px + 48, 0, [[0, '#edbfaa'], [0.28, '#dca895'], [0.66, SKIN], [1, '#986255']]);
+  // A fuller forearm tapers from the elbow toward the wrist.
   ctx.beginPath();
-  ctx.moveTo(px - 30, 132);
-  ctx.bezierCurveTo(px - 33, 180, px - 26, 214, px - 22, 232);
-  ctx.lineTo(px + 22, 232);
-  ctx.bezierCurveTo(px + 28, 212, px + 33, 180, px + 30, 132);
+  ctx.moveTo(px - 46, 146);
+  ctx.bezierCurveTo(px - 51, 181, px - 43, 218, px - 34, 252);
+  ctx.quadraticCurveTo(px - 31, 264, px - 23, 268);
+  ctx.lineTo(px + 23, 268);
+  ctx.quadraticCurveTo(px + 31, 264, px + 34, 252);
+  ctx.bezierCurveTo(px + 43, 218, px + 51, 181, px + 46, 146);
   ctx.closePath();
   ctx.fillStyle = skinG;
   ctx.fill();
-  ctx.strokeStyle = 'rgba(70,35,25,0.55)';
-  ctx.lineWidth = 1.6;
+  ctx.strokeStyle = 'rgba(75,41,34,0.35)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.save();
+  ctx.clip();
+  ctx.fillStyle = radial(ctx, px - 24, 183, 76, [[0, 'rgba(255,224,207,0.28)'], [1, 'rgba(255,224,207,0)']]);
+  ctx.fillRect(px - 52, 148, 104, 120);
+  ctx.restore();
+  ctx.strokeStyle = 'rgba(115,64,52,0.18)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(px + 25, 178);
+  ctx.bezierCurveTo(px + 18, 200, px + 19, 228, px + 25, 247);
   ctx.stroke();
   const r = rng(3);
-  ctx.strokeStyle = 'rgba(90,55,40,0.3)';
+  ctx.strokeStyle = 'rgba(90,55,40,0.23)';
   ctx.lineWidth = 1;
-  for (let i = 0; i < 40; i++) {
-    const x = px - 22 + r() * 44;
-    const y = 138 + r() * 88;
+  for (let i = 0; i < 48; i++) {
+    const x = px - 32 + r() * 64;
+    const y = 166 + r() * 83;
     ctx.beginPath();
     ctx.moveTo(x, y);
     ctx.lineTo(x + 2, y + 5);
     ctx.stroke();
   }
   // open hand, palm to the camera
-  const hy = 262;
+  const hy = 284;
   const fingers: [number, number, number][] = [
-    [-20, -0.16, 34],
-    [-7, -0.05, 40],
-    [7, 0.05, 39],
-    [19, 0.16, 32],
+    [-25, -0.16, 37],
+    [-8, -0.05, 43],
+    [9, 0.05, 42],
+    [25, 0.16, 35],
   ];
   for (const [fx, a, len] of fingers) {
     ctx.save();
     ctx.translate(px + fx, hy + 12);
     ctx.rotate(a);
-    roundRect(ctx, -6.2, 0, 12.4, len, 6.2);
-    ctx.fillStyle = linear(ctx, -6, 0, 6, 0, [[0, '#e8b8a6'], [1, '#b87a69']]);
+    roundRect(ctx, -7, 0, 14, len, 7);
+    ctx.fillStyle = linear(ctx, -7, 0, 7, 0, [[0, '#e8b8a6'], [1, '#b87a69']]);
     ctx.fill();
     ctx.strokeStyle = 'rgba(70,35,25,0.55)';
     ctx.lineWidth = 1.3;
@@ -1036,18 +1075,18 @@ function arm(ctx: Ctx) {
   }
   // thumb (inner side)
   ctx.save();
-  ctx.translate(px + 26, hy - 6);
+  ctx.translate(px + 36, hy - 6);
   ctx.rotate(-0.75);
-  roundRect(ctx, -7, 0, 14, 34, 7);
-  ctx.fillStyle = linear(ctx, -7, 0, 7, 0, [[0, '#e0ad9b'], [1, '#b27564']]);
+  roundRect(ctx, -8, 0, 16, 37, 8);
+  ctx.fillStyle = linear(ctx, -8, 0, 8, 0, [[0, '#e0ad9b'], [1, '#b27564']]);
   ctx.fill();
   ctx.strokeStyle = 'rgba(70,35,25,0.55)';
   ctx.lineWidth = 1.3;
   ctx.stroke();
   ctx.restore();
   // palm
-  roundRect(ctx, px - 27, hy - 30, 54, 50, 20);
-  ctx.fillStyle = radial(ctx, px - 6, hy - 10, 40, [[0, '#f0c2b0'], [0.6, '#d49c8a'], [1, '#b07260']]);
+  roundRect(ctx, px - 34, hy - 32, 68, 58, 22);
+  ctx.fillStyle = radial(ctx, px - 9, hy - 12, 48, [[0, '#f0c2b0'], [0.6, '#d49c8a'], [1, '#b07260']]);
   ctx.fill();
   ctx.strokeStyle = 'rgba(70,35,25,0.55)';
   ctx.lineWidth = 1.4;
@@ -1055,34 +1094,67 @@ function arm(ctx: Ctx) {
   ctx.strokeStyle = 'rgba(120,60,50,0.35)';
   ctx.lineWidth = 1.4;
   ctx.beginPath();
-  ctx.moveTo(px - 18, hy - 6);
-  ctx.quadraticCurveTo(px, hy + 2, px + 16, hy - 14);
-  ctx.moveTo(px - 16, hy + 8);
-  ctx.quadraticCurveTo(px + 2, hy + 10, px + 18, hy + 2);
+  ctx.moveTo(px - 22, hy - 6);
+  ctx.quadraticCurveTo(px, hy + 2, px + 21, hy - 14);
+  ctx.moveTo(px - 19, hy + 9);
+  ctx.quadraticCurveTo(px + 2, hy + 11, px + 21, hy + 2);
   ctx.stroke();
-  // sleeve (deltoid dome)
+  // The cuff sits in front of the forearm; the sleeve itself sits behind the
+  // torso, so its inner edge disappears naturally into the shoulder.
   ctx.beginPath();
-  ctx.moveTo(px - 50, 140);
-  ctx.lineTo(px - 56, 70);
-  ctx.bezierCurveTo(px - 58, 14, px + 58, 14, px + 56, 70);
-  ctx.lineTo(px + 50, 140);
+  ctx.moveTo(px - 57, 144);
+  ctx.quadraticCurveTo(px, 154, px + 57, 144);
+  ctx.lineTo(px + 54, 164);
+  ctx.quadraticCurveTo(px, 173, px - 54, 164);
   ctx.closePath();
-  ctx.fillStyle = linear(ctx, px - 56, 0, px + 56, 0, [[0, '#384463'], [0.4, '#2a3249'], [0.85, '#1a2031'], [1, '#402a2a']]);
+  ctx.fillStyle = linear(ctx, 0, 144, 0, 170, [[0, '#3b4865'], [0.48, '#2a344c'], [1, '#171d2d']]);
   ctx.fill();
-  ctx.strokeStyle = 'rgba(8,10,18,0.85)';
-  ctx.lineWidth = 2.2;
+  ctx.strokeStyle = 'rgba(8,10,18,0.58)';
+  ctx.lineWidth = 1.8;
   ctx.stroke();
-  ctx.strokeStyle = 'rgba(5,8,16,0.35)';
+  ctx.strokeStyle = 'rgba(192,205,232,0.20)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(px - 48, 149);
+  ctx.quadraticCurveTo(px, 159, px + 48, 149);
+  ctx.stroke();
+}
+
+function armSleeve(ctx: Ctx) {
+  const { px } = ARM;
+  ctx.beginPath();
+  ctx.moveTo(px - 48, 28);
+  ctx.bezierCurveTo(px - 75, 30, px - 80, 70, px - 68, 110);
+  ctx.lineTo(px - 57, 156);
+  ctx.quadraticCurveTo(px, 171, px + 57, 156);
+  ctx.lineTo(px + 68, 110);
+  ctx.bezierCurveTo(px + 80, 70, px + 75, 30, px + 48, 28);
+  ctx.bezierCurveTo(px + 16, 10, px - 16, 10, px - 48, 28);
+  ctx.closePath();
+  ctx.fillStyle = linear(ctx, px - 75, 0, px + 75, 0, [[0, '#45516c'], [0.33, '#333d57'], [0.72, '#263047'], [1, '#151b2b']]);
+  ctx.fill();
+  ctx.save();
+  ctx.clip();
+  ctx.fillStyle = radial(ctx, px - 32, 67, 115, [[0, 'rgba(208,219,244,0.22)'], [0.5, 'rgba(208,219,244,0.05)'], [1, 'rgba(0,0,0,0)']]);
+  ctx.fillRect(0, 0, ARM.w, 170);
+  ctx.fillStyle = linear(ctx, 0, 28, 0, 166, [[0, 'rgba(255,255,255,0.07)'], [0.55, 'rgba(0,0,0,0)'], [1, 'rgba(0,0,0,0.22)']]);
+  ctx.fillRect(0, 0, ARM.w, 170);
+  ctx.restore();
+  ctx.strokeStyle = 'rgba(8,10,18,0.58)';
+  ctx.lineWidth = 1.6;
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(186,199,232,0.16)';
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(px - 48, 43);
+  ctx.bezierCurveTo(px - 63, 63, px - 67, 87, px - 60, 112);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(9,13,25,0.32)';
   ctx.lineWidth = 5;
   ctx.beginPath();
-  ctx.moveTo(px - 30, 100);
-  ctx.quadraticCurveTo(px - 6, 118, px + 20, 104);
-  ctx.stroke();
-  roundRect(ctx, px - 52, 126, 104, 18, 8);
-  ctx.fillStyle = linear(ctx, 0, 126, 0, 144, [[0, '#2c354f'], [1, '#191e2e']]);
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(8,10,18,0.8)';
-  ctx.lineWidth = 1.8;
+  ctx.moveTo(px + 58, 82);
+  ctx.quadraticCurveTo(px + 32, 108, px + 16, 124);
   ctx.stroke();
 }
 
@@ -1440,7 +1512,8 @@ export function buildTextures(scene: Phaser.Scene) {
   ui(scene, S);
   add(scene, 'body', BODY.w, BODY.h + 10, S, body);
   add(scene, 'collar', 160, 70, S, collar);
-  add(scene, 'arm', ARM.w, ARM.h, S, arm);
+  add(scene, 'arm-sleeve', ARM.w, ARM.h, S, armSleeve);
+  add(scene, 'arm-forearm', ARM.w, ARM.h, S, armForearm);
   for (let i = 0; i < CREW.length; i++) {
     add(scene, 'npc' + i, 220, 300, S * 0.8, (ctx) => npcBack(ctx, i));
     add(scene, 'npcarm' + i, 88, 180, S * 0.8, (ctx) => npcArm(ctx, i));
