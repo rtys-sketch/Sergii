@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#1a1020" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Сергій" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="description" content="Кидай помідори, какашки й банки в Сергія. Ухиляйся. Не зли його. (Запізно.)" />
+    <meta property="og:title" content="Сергій проти всіх: Останній нерв колективу" />
+    <meta property="og:description" content="Кидай помідори в Сергія. Він кидає у відповідь." />
+    <meta property="og:image" content="icons/og.jpg" />
+    <link rel="icon" type="image/png" href="icons/favicon-64.png" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+    <title>Сергій проти всіх</title>
+    <style>
+      html,body{margin:0;height:100%;background:#1a1020;overflow:hidden}
+      #loader{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
+        background:radial-gradient(120% 80% at 50% 35%,#4a1f33 0%,#1a1020 70%);color:#fff;
+        font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,Arial,sans-serif;transition:opacity .45s ease}
+      #loader.hide{opacity:0;pointer-events:none}
+      #loader .t1{font-weight:900;font-size:clamp(30px,9vw,54px);letter-spacing:.02em;line-height:.95;text-align:center;
+        text-shadow:0 4px 0 #b3261e,0 10px 24px rgba(0,0,0,.5)}
+      #loader .t2{font-weight:800;font-size:clamp(11px,3.2vw,15px);letter-spacing:.18em;color:#ffcf5a;text-align:center}
+      #loader .tomato{width:64px;height:58px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#ff8a73 0%,#e3261b 45%,#9e120c 100%);
+        position:relative;animation:bounce .7s cubic-bezier(.3,0,.5,1) infinite alternate;box-shadow:inset -6px -8px 0 rgba(0,0,0,.12)}
+      #loader .tomato:before{content:"";position:absolute;left:50%;top:-8px;width:28px;height:14px;margin-left:-14px;
+        background:#3fa34d;border-radius:50% 50% 40% 40%;clip-path:polygon(0 60%,20% 0,35% 55%,50% 0,65% 55%,80% 0,100% 60%,50% 100%)}
+      #loader .shadow{width:54px;height:10px;border-radius:50%;background:rgba(0,0,0,.35);margin-top:-8px;animation:shadow .7s cubic-bezier(.3,0,.5,1) infinite alternate}
+      #loader .bar{width:min(62vw,280px);height:12px;border-radius:99px;background:rgba(255,255,255,.12);overflow:hidden;box-shadow:inset 0 0 0 2px rgba(255,255,255,.08)}
+      #loader .bar i{display:block;height:100%;width:4%;border-radius:99px;background:linear-gradient(90deg,#ffcf5a,#ff5a3c);transition:width .25s ease}
+      #loader .hint{font-size:13px;opacity:.7;font-weight:600;min-height:1.2em}
+      @keyframes bounce{from{transform:translateY(-34px) scale(.96,1.04)}to{transform:translateY(0) scale(1.08,.9)}}
+      @keyframes shadow{from{transform:scale(.6);opacity:.5}to{transform:scale(1);opacity:1}}
+    </style>
+  </head>
+  <body>
+    <div id="safe-probe"></div>
+    <div id="game"></div>
+    <div id="loader">
+      <div class="t1">СЕРГІЙ<br />ПРОТИ ВСІХ</div>
+      <div class="t2">ОСТАННІЙ НЕРВ КОЛЕКТИВУ</div>
+      <div style="height:26px"></div>
+      <div class="tomato"></div>
+      <div class="shadow"></div>
+      <div class="bar"><i id="loader-bar"></i></div>
+      <div class="hint" id="loader-hint">Завантажуємо терпіння…</div>
+    </div>
+    <div id="rotate"><div>📱</div><b>Поверни телефон вертикально</b><span>Сергій не влазить горизонтально.</span></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
