@@ -18,7 +18,6 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: false,
-      includeAssets: ['icons/*.png', 'icons/og.jpg', 'assets/*.webp'],
       manifest: {
         id: './',
         name: 'Сергій проти всіх: Останній нерв колективу',

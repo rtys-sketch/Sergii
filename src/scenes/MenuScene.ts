@@ -58,8 +58,8 @@ export function iconButton(scene: Phaser.Scene, x: number, y: number, icon: stri
   g.strokeRoundedRect(-44, -44, 88, 88, 24);
   const img = scene.add.image(0, 0, icon).setScale(0.52 / L.TS);
   const t = scene.add.text(0, 66, label, ui(15, '#ffffff', '800', { stroke: '#1a0f1f', strokeThickness: 4 })).setOrigin(0.5);
-  const c = scene.add.container(x, y, [g, img, t]).setSize(110, 150);
-  c.setInteractive(new Phaser.Geom.Rectangle(-55, -55, 110, 150), Phaser.Geom.Rectangle.Contains);
+  const c = scene.add.container(x, y, [g, img, t]).setSize(130, 170);
+  c.setInteractive();
   c.on('pointerdown', () => scene.tweens.add({ targets: c, scale: 0.92, duration: 70 }));
   c.on('pointerout', () => scene.tweens.add({ targets: c, scale: 1, duration: 120 }));
   c.on('pointerup', () => {
@@ -77,8 +77,8 @@ export function backButton(scene: Phaser.Scene, onClick: () => void) {
   g.lineStyle(2.5, 0xffffff, 0.25);
   g.strokeRoundedRect(-30, -30, 60, 60, 16);
   const img = scene.add.image(0, 0, 'ic_back').setScale(0.36 / L.TS);
-  const c = scene.add.container(46, hudTop() + 34, [g, img]).setSize(76, 76).setDepth(100);
-  c.setInteractive(new Phaser.Geom.Rectangle(-38, -38, 76, 76), Phaser.Geom.Rectangle.Contains);
+  const c = scene.add.container(46, hudTop() + 34, [g, img]).setSize(84, 84).setDepth(100);
+  c.setInteractive();
   c.on('pointerup', () => {
     audio.click();
     onClick();
@@ -354,7 +354,7 @@ export class MenuScene extends Phaser.Scene {
     this.stage.update(dt);
     s.update(dt);
     const top = s.facePoint({ x: 40, y: -690 });
-    this.speech.update(dt, this.stage.px(s.headCenter().x), Math.max(hudTop() + 300, this.stage.py(top.y) - 20));
+    this.speech.update(dt, this.stage.px(s.headCenter().x), Math.max(hudTop() + 336, this.stage.py(top.y) - 20));
     this.fx.camera(dt);
   }
 }

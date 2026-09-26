@@ -45,8 +45,9 @@ export class Button extends Phaser.GameObjects.Container {
       .setOrigin(0.5);
     this.add([this.g, this.label]);
     this.draw();
-    this.setSize(opts.w, opts.h);
-    this.setInteractive(new Phaser.Geom.Rectangle(-opts.w / 2, -opts.h / 2, opts.w, opts.h), Phaser.Geom.Rectangle.Contains);
+    // container hit areas are measured from the top-left corner (x + width/2)
+    this.setSize(opts.w + 12, opts.h + 12);
+    this.setInteractive();
     this.on('pointerdown', () => {
       if (!this.enabled) return;
       scene.tweens.killTweensOf(this);

@@ -88,7 +88,7 @@ export const ROUNDS: RoundDef[] = [
     crowdEvery: [99, 99],
     events: false,
     rageAt: 0,
-    dmgMul: 1.3,
+    dmgMul: 0.75,
     back: { tomato: 1 },
   },
   {
@@ -107,13 +107,13 @@ export const ROUNDS: RoundDef[] = [
     flight: 0.7,
     combo: 1,
     items: { tomato: 50, poop: 32, can: 18 },
-    bonus: 0.03,
-    gold: 0.004,
+    bonus: 0,
+    gold: 0,
     crowd: false,
     crowdEvery: [99, 99],
     events: true,
     rageAt: 0,
-    dmgMul: 1.12,
+    dmgMul: 0.72,
     back: { tomato: 2, can: 1 },
   },
   {
@@ -127,7 +127,7 @@ export const ROUNDS: RoundDef[] = [
     pause: [0.6, 1.6],
     dodge: 0.24,
     catchChance: 0.45,
-    attackEvery: [5, 7],
+    attackEvery: [6.2, 8.2],
     telegraph: 1.05,
     flight: 0.64,
     combo: 1,
@@ -138,7 +138,7 @@ export const ROUNDS: RoundDef[] = [
     crowdEvery: [99, 99],
     events: true,
     rageAt: 0,
-    dmgMul: 1.0,
+    dmgMul: 0.72,
     back: { tomato: 2, can: 2, slipper: 1, tp: 1 },
   },
   {
@@ -152,7 +152,7 @@ export const ROUNDS: RoundDef[] = [
     pause: [0.5, 1.4],
     dodge: 0.28,
     catchChance: 0.45,
-    attackEvery: [4.6, 6.4],
+    attackEvery: [5.8, 7.8],
     telegraph: 1.0,
     flight: 0.62,
     combo: 2,
@@ -163,7 +163,7 @@ export const ROUNDS: RoundDef[] = [
     crowdEvery: [2.8, 5.2],
     events: true,
     rageAt: 0,
-    dmgMul: 0.9,
+    dmgMul: 0.64,
     back: { tomato: 2, can: 2, slipper: 1, tp: 1 },
   },
   {
@@ -177,7 +177,7 @@ export const ROUNDS: RoundDef[] = [
     pause: [0.35, 1.1],
     dodge: 0.36,
     catchChance: 0.55,
-    attackEvery: [3.8, 5.4],
+    attackEvery: [5.2, 7],
     telegraph: 0.92,
     flight: 0.58,
     combo: 3,
@@ -188,7 +188,7 @@ export const ROUNDS: RoundDef[] = [
     crowdEvery: [2.4, 4.6],
     events: true,
     rageAt: 20,
-    dmgMul: 0.82,
+    dmgMul: 0.6,
     back: { tomato: 2, can: 3, slipper: 2, tp: 1 },
   },
 ];
@@ -202,7 +202,7 @@ export const ENDLESS: RoundDef = {
   endLine: 'Він усе ще тут. І він усе пам’ятає.',
   crowd: true,
   crowdEvery: [3.5, 6],
-  dmgMul: 1.15,
+  dmgMul: 0.8,
 };
 
 /** Hit captions for head shots (localized «HEADSHOT»). */

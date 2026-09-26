@@ -92,6 +92,7 @@ export class HudScene extends Phaser.Scene {
   private modal?: Phaser.GameObjects.Container;
   private t = 0;
   private cardState = '';
+  private topUi: Phaser.GameObjects.GameObject[] = [];
 
   constructor() {
     super('Hud');
@@ -115,6 +116,7 @@ export class HudScene extends Phaser.Scene {
     this.barGhost = 100;
     this.comboShown = 0;
     this.cardState = '';
+    this.topUi = [];
   }
 
   create() {
@@ -166,8 +168,8 @@ export class HudScene extends Phaser.Scene {
     pg.fillStyle(0xffffff, 1);
     pg.fillRoundedRect(-11, -13, 8, 26, 3);
     pg.fillRoundedRect(3, -13, 8, 26, 3);
-    const pause = this.add.container(W - 46, top + 34, [pg]).setDepth(10).setSize(70, 70);
-    pause.setInteractive(new Phaser.Geom.Rectangle(-38, -38, 76, 76), Phaser.Geom.Rectangle.Contains);
+    const pause = this.add.container(W - 46, top + 34, [pg]).setDepth(10).setSize(84, 84);
+    pause.setInteractive();
     pause.on('pointerup', () => {
       audio.click();
       this.game2.pauseGame();
@@ -225,7 +227,7 @@ export class HudScene extends Phaser.Scene {
 
     // threat indicators («Сергій кидає в тебе!» / «УХИЛИСЬ!»)
     this.threatTitle = this.add
-      .text(W / 2, top + 250, 'Сергій кидає в тебе!', textStyle(32, '#ffffff', { stroke: '#8a0010', strokeThickness: 9 }))
+      .text(W / 2, top + 238, 'Сергій кидає в тебе!', textStyle(32, '#ffffff', { stroke: '#8a0010', strokeThickness: 9 }))
       .setOrigin(0.5)
       .setDepth(9)
       .setAngle(-3)
@@ -271,6 +273,7 @@ export class HudScene extends Phaser.Scene {
     }
 
     this.refreshCards(true);
+    this.topUi = this.children.list.filter((o) => (o as any).depth >= 3 && (o as any).depth <= 12 && (o as any).y < top + 240);
 
     this.input.on('pointerdown', this.onDown, this);
     this.input.on('pointermove', this.onMove, this);
@@ -997,6 +1000,7 @@ export class HudScene extends Phaser.Scene {
       textColor: '#ffffff',
       onClick: () => this.doShare(d.total, false),
     });
+    this.tweens.add({ targets: this.topUi, alpha: 0, duration: 300 });
     const c = this.openModal([t1, t2, t3, p, lbl, score, rec, ...cols, unlock, again, rematch, share], 0.12);
     for (const o of [t1, t2]) {
       o.setScale(0);
@@ -1077,6 +1081,7 @@ export class HudScene extends Phaser.Scene {
       const inDanger = g.lane === this.threatLane;
       const pulse = 1 + Math.sin(this.t * 16) * 0.07;
       this.dodgeText.setVisible(inDanger).setScale(pulse);
+      if (!inDanger) this.dodgeHint.setVisible(false);
       for (const a of this.chevrons) a.setVisible(inDanger).setAlpha(0.65 + Math.sin(this.t * 14) * 0.35);
       this.chevrons[0].x = 70 - Math.abs(Math.sin(this.t * 7)) * 18;
       this.chevrons[1].x = L.W - 70 + Math.abs(Math.sin(this.t * 7)) * 18;

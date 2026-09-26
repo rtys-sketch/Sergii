@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { K, L } from '../core/layout';
+import { K, L, hudTop } from '../core/layout';
 import { audio } from '../core/audio';
 import { persist, save } from '../core/save';
 import { TABLE_Y, GROUND_Y } from '../core/background';
@@ -107,7 +107,7 @@ interface Plan {
 const G = 2600;
 const Z0 = 0.42;
 const ZEND = 0.2;
-const LANE_X = 110;
+const LANE_X = 95;
 
 export const itemScale = (kind: ItemKind, z = 1) => (ITEMS[kind].size * K) / (0.78 * ITEM_PX) / z;
 
@@ -219,6 +219,7 @@ export class GameScene extends Phaser.Scene {
     this.slowTarget = 1;
     this.hitStop = 0;
     this.simTime = 0;
+    this.lastThrow = -1;
     this.projs = [];
     this.incoming = [];
     this.plans = [];
@@ -401,8 +402,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ================================================================== input API (called by HUD)
+  private lastThrow = 0;
+
   canThrow() {
-    return this.state === 'play' && this.projs.filter((p) => p.active && !p.resolved && !p.npc).length < 5;
+    return (
+      this.state === 'play' &&
+      this.simTime - this.lastThrow > 0.26 &&
+      this.projs.filter((p) => p.active && !p.resolved && !p.npc).length < 5
+    );
   }
 
   onGoldenAppear() {
@@ -417,6 +424,7 @@ export class GameScene extends Phaser.Scene {
     const kind = this.slotKind(slot);
     if (!kind || this.slotLocked(slot) || this.slotCount(slot) <= 0) return false;
     this.consume(slot);
+    this.lastThrow = this.simTime;
     const def = ITEMS[kind];
     let p = speedCss / 1050;
     if (p > 1) p = 1 + 0.25 * Math.tanh((speedCss - 1050) / 900);
@@ -733,12 +741,12 @@ export class GameScene extends Phaser.Scene {
 
     // texts
     const ptsCol = def.kind === 'gold' ? '#ffe066' : head ? '#ffd23f' : '#ffffff';
-    this.fx.float(sx + rand(-30, 30), sy - 50, `+${pts}`, head ? 38 : 32, ptsCol, 80, 380);
+    this.fx.float(clamp(sx + (head ? 90 : 0), 80, L.W - 80), sy + (head ? 40 : -50), `+${pts}`, head ? 36 : 32, ptsCol, 80, 380);
     if (head && !p.npc) {
       let cap = pick(HEAD_CAPTIONS);
       if (cap === this.lastCaption) cap = pick(HEAD_CAPTIONS);
       this.lastCaption = cap;
-      this.fx.float(L.W / 2 + rand(-40, 40), st.py(hc.y) - 210, cap, 44, '#ffffff', 50, 520);
+      this.fx.float(clamp(sx, 200, L.W - 200), sy - 40, cap, 42, '#ffffff', 60, 480);
     }
     if (def.kind === 'gold') this.hud.banner('ЗОЛОТЕ ВЛУЧАННЯ', 'x10 ОЧОК', '#ffd23f', 1.2);
 
@@ -747,6 +755,10 @@ export class GameScene extends Phaser.Scene {
       const step = COMBO_STEPS.find((s) => s.at === this.combo);
       if (step) {
         this.hud.comboCaption(step.mult, step.caption);
+        if ((step.at === 10 || step.at === 20 || step.at === 30) && this.hearts < 3) {
+          this.hearts++;
+          this.hud.toast('Сергій розгубився: +1 ❤️', '#ff8a9a');
+        }
         audio.combo(COMBO_STEPS.indexOf(step));
         this.fx.sparkles(sx, sy, 12 + COMBO_STEPS.indexOf(step) * 6);
       } else if (this.combo > 30 && this.combo % 10 === 0) {
@@ -844,7 +856,13 @@ export class GameScene extends Phaser.Scene {
     this.moodLevel = lvl;
     this.sergii.moodLevel = lvl;
     if (lvl === 1) this.say('Та ну вас…');
-    if (lvl === 2) this.hud.toast('Сергій почав ухилятися активніше');
+    if (lvl === 2) {
+      this.hud.toast('Сергій почав ухилятися активніше');
+      if (this.hearts < 3) {
+        this.hearts++;
+        this.time.delayedCall(900, () => this.hud.toast('Колектив підтримує: +1 ❤️', '#ff8a9a'));
+      }
+    }
     if (lvl === 3) {
       this.sergii.tintTarget = 0.28;
       this.hud.warn('Схоже, Сергій починає щось підозрювати.');
@@ -880,6 +898,10 @@ export class GameScene extends Phaser.Scene {
     s.visibleBang = false;
     this.hud.clearThreat();
     this.hud.banner('СЕРГІЙ ПСИХАНУВ', 'Протримайся!', '#ff4040', 1.8, true);
+    if (this.hearts < 3) {
+      this.hearts++;
+      this.time.delayedCall(1900, () => this.hud.toast('Колектив прикриває: +1 ❤️', '#ff8a9a'));
+    }
     audio.rage();
     audio.setIntensity(2);
     this.hud.setDanger(2);
@@ -953,7 +975,7 @@ export class GameScene extends Phaser.Scene {
     audio.rage();
     this.fx.shake(0.7);
     this.hud.setDanger(0);
-    this.hud.banner(this.def.endTitle, 'ТЕРПІННЯ: 0%', '#ffd23f', 2.0, true);
+    this.hud.banner('СЕРГІЙ ПСИХАНУВ', 'Терпіння: 0%. Раунд твій.', '#ff4040', 2.0, true);
     this.time.delayedCall(1500, () => {
       s.shake = 0;
       s.exhausted = true;
@@ -1351,7 +1373,7 @@ export class GameScene extends Phaser.Scene {
   private nextAttackDelay() {
     const [a, b] = this.def.attackEvery;
     let d = rand(a, b) * this.tune.atk;
-    if (this.rage) d *= 0.5;
+    if (this.rage) d *= 0.72;
     if (this.rushT > 0) d *= 0.7;
     d *= 1 - this.pFactor * 0.2;
     return Math.max(1.6, d);
@@ -1362,8 +1384,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private teleTime() {
-    let t = this.def.telegraph + this.tune.tele;
-    if (this.rage) t *= 0.85;
+    const t = this.def.telegraph + this.tune.tele;
     return Math.max(0.6, t);
   }
 
@@ -1445,7 +1466,7 @@ export class GameScene extends Phaser.Scene {
         if (!this.tutorialAttackHold && this.state === 'play') {
           this.attackT -= dt;
           if (this.attackT <= 0) {
-            const combo = def.combo > 1 && chance(this.rage ? 0.6 : 0.35) ? Math.floor(rand(1, def.combo)) : 0;
+            const combo = def.combo > 1 && chance(this.rage ? 0.35 : 0.25) ? Math.floor(rand(1, def.combo)) : 0;
             this.startAttack(this.pickBack(), this.teleTime(), combo);
             this.attackT = this.nextAttackDelay();
             break;
@@ -1638,7 +1659,7 @@ export class GameScene extends Phaser.Scene {
     if (this.rage && this.state === 'play' && this.act !== 'tantrum') {
       this.rageTime -= dt;
       this.rageElapsed += dt;
-      if (this.rageTime <= 0 && this.rageElapsed >= 11) this.finalVictory();
+      if (this.rageTime <= 0 && this.rageElapsed >= 14) this.finalVictory();
       else if (this.rageTime <= 0) this.rageTime = 0.001;
     }
 
@@ -1666,7 +1687,7 @@ export class GameScene extends Phaser.Scene {
     this.crowd.update(dt);
     this.drawTrails();
     const top = this.sergii.facePoint({ x: 40, y: -690 });
-    this.speech.update(dtR, this.stage.px(this.sergii.headCenter().x), this.stage.py(top.y) - 30);
+    this.speech.update(dtR, this.stage.px(this.sergii.headCenter().x), Math.max(hudTop() + 330, this.stage.py(top.y) - 30));
     this.fx.camera(dtR);
     if (this.fx.focus.k > 0 && this.act !== 'catchHold') this.fx.focus.k = Math.max(0, this.fx.focus.k - dtR * 0.3);
   }

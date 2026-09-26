@@ -122,23 +122,29 @@ export class Fx {
     }
   }
 
+  /** Phaser's setParticleTint only accepts a number after creation, so multi-colour bursts are split. */
+  private burst(em: Phaser.GameObjects.Particles.ParticleEmitter, tints: number | number[], n: number, x: number, y: number) {
+    const list = Array.isArray(tints) ? tints : [tints];
+    const per = Math.max(1, Math.round(n / list.length));
+    for (const t of list) {
+      em.setParticleTint(t);
+      em.explode(per, x, y);
+    }
+  }
+
   splash(x: number, y: number, tints: number[], power = 1, count = 18) {
-    this.goo.setParticleTint(tints);
-    this.goo.setParticleSpeed(180 * power, 640 * power);
-    this.goo.explode(Math.round(count * clamp(power, 0.6, 1.6)), x, y);
+    this.burst(this.goo, tints, Math.round(count * clamp(power, 0.6, 1.6)), x, y);
     this.dust.setParticleTint(tints[0]);
     this.dust.explode(6, x, y);
   }
 
   clang(x: number, y: number) {
-    this.stars.setParticleTint([0xffffff, 0xfff2a8, 0xbfe3ff]);
-    this.stars.explode(10, x, y);
+    this.burst(this.stars, [0xffffff, 0xfff2a8, 0xbfe3ff], 10, x, y);
     this.ring(x, y, 0xffffff, 0.9);
   }
 
   sparkles(x: number, y: number, n = 16, tint: number | number[] = [0xffe066, 0xffffff, 0xffc93c]) {
-    this.stars.setParticleTint(tint);
-    this.stars.explode(n, x, y);
+    this.burst(this.stars, tint, n, x, y);
   }
 
   confetti(x: number, y: number, n = 80) {
@@ -156,8 +162,7 @@ export class Fx {
   }
 
   eggShards(x: number, y: number) {
-    this.shards.setParticleTint([0xffffff, 0xf2e9d6]);
-    this.shards.explode(10, x, y);
+    this.burst(this.shards, [0xffffff, 0xf2e9d6], 10, x, y);
   }
 
   papers(x: number, y: number, n = 12) {

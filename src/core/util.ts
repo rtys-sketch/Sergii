@@ -28,9 +28,15 @@ export class Spring {
   v = 0;
   constructor(public x = 0, public target = 0, public k = 170, public d = 13) {}
   step(dt: number) {
-    const a = (this.target - this.x) * this.k - this.v * this.d;
-    this.v += a * dt;
-    this.x += this.v * dt;
+    // semi-implicit Euler in small sub-steps: stays stable on slow frames / hitches
+    let left = Math.min(dt, 0.1);
+    while (left > 1e-6) {
+      const h = Math.min(left, 1 / 240);
+      const a = (this.target - this.x) * this.k - this.v * this.d;
+      this.v += a * h;
+      this.x += this.v * h;
+      left -= h;
+    }
     return this.x;
   }
   kick(impulse: number) {

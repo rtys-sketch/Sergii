@@ -67,7 +67,7 @@ export class RoundsScene extends Phaser.Scene {
       parts.push(this.add.text(-w / 2 + 96, 20, 'Нескінченний режим · пройди всі 5 раундів', ui(16, '#8f7fa0', '700')).setOrigin(0, 0.5));
     }
     const c = this.add.container(W / 2, Math.min(sy, bottom - 55), parts).setSize(w, h);
-    c.setInteractive(new Phaser.Geom.Rectangle(-w / 2, -h / 2, w, h), Phaser.Geom.Rectangle.Contains);
+    c.setInteractive();
     this.press(c, () => {
       if (unlocked) this.go('Endless');
       else {
@@ -128,7 +128,7 @@ export class RoundsScene extends Phaser.Scene {
     parts.push(this.add.text(tx, h / 2 - 26, LEVEL[i], ui(Math.round(h * 0.12), unlocked ? '#fff6dc' : '#6f607e', '700')).setOrigin(0, 0.5));
     if (unlocked && i + 1 < save.unlockedRound) parts.push(this.add.text(w / 2 - 22, -h / 2 + 22, '✓', textStyle(26, '#7be34a')).setOrigin(0.5));
     const c = this.add.container(L.W / 2, y, parts).setSize(w, h);
-    c.setInteractive(new Phaser.Geom.Rectangle(-w / 2, -h / 2, w, h), Phaser.Geom.Rectangle.Contains);
+    c.setInteractive();
     this.press(c, () => {
       if (unlocked) this.go('Game', { mode: 'campaign', round: i + 1, runScore: 0 });
       else {
