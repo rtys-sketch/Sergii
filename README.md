@@ -1,5 +1,7 @@
 # Сергій проти всіх: Останній нерв колективу
 
+🎮 **[Грати онлайн з телефона](https://rtys-sketch.github.io/Sergii/)** — публічне посилання, яке можна надіслати друзям.
+
 Мобільна **HTML5 / PWA** arcade-гра для iPhone (і Android): кидай свайпом помідори, какашки й банки в Сергія,
 ухиляйся від того, що він кидає у відповідь, і доведи «Терпіння Сергія» до нуля.
 
@@ -34,8 +36,8 @@ npm run preview    # перевірка продакшн-збірки
 
 ### Публікація (URL для iPhone)
 
-- **GitHub Pages:** Settings → Pages → Source: *GitHub Actions*. Далі кожен push у `main` публікує гру
-  (workflow `.github/workflows/pages.yml`) на `https://<user>.github.io/<repo>/`.
+- **GitHub Pages:** [публічна гра](https://rtys-sketch.github.io/Sergii/) автоматично оновлюється після кожного push у `main`
+  через workflow `.github/workflows/pages.yml`.
 - **Vercel / Netlify / Cloudflare Pages:** імпортувати репозиторій; framework — Vite, build `npm run build`, output `dist`.
 
 На iPhone: відкрити URL у Safari → «Поділитися» → «На Початковий екран» — гра запускається на весь екран як застосунок.
