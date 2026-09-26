@@ -4,7 +4,7 @@ import { audio } from '../core/audio';
 import { persist, save } from '../core/save';
 import { shareScore } from '../core/share';
 import { clamp, fmt, rand } from '../core/util';
-import { ITEMS, comboMult, type ItemKind } from '../data/config';
+import { ITEMS, comboMult, funTitle, type ItemKind } from '../data/config';
 import { FONT_UI, textStyle } from '../game/Fx';
 import { Button } from '../ui/Button';
 import { itemScale, type GameScene, type RoundStats } from './GameScene';
@@ -86,6 +86,9 @@ export class HudScene extends Phaser.Scene {
   private bannerBand!: Phaser.GameObjects.Rectangle;
   private ribbon!: Phaser.GameObjects.Container;
   private ribbonText!: Phaser.GameObjects.Text;
+  private ribbonHint!: Phaser.GameObjects.Text;
+  private lastTapHint = -99;
+  private ribbonG!: Phaser.GameObjects.Graphics;
   private toasts: Phaser.GameObjects.Text[] = [];
   private toastIdx = 0;
   private signSide = 1;
@@ -252,15 +255,10 @@ export class HudScene extends Phaser.Scene {
       .setOrigin(0.5, 0);
     this.bannerBox = this.add.container(W / 2, L.H * 0.4, [this.bannerTitle, this.bannerSub]).setDepth(21).setVisible(false);
 
-    const rg = this.add.graphics();
-    rg.fillStyle(0x1a0f1f, 1);
-    rg.fillRect(-W / 2 - 20, -36, W + 40, 72);
-    rg.fillStyle(0xe8323c, 1);
-    rg.fillRect(-W / 2 - 20, -30, W + 40, 60);
-    rg.fillStyle(0xffffff, 0.2);
-    rg.fillRect(-W / 2 - 20, -30, W + 40, 8);
+    this.ribbonG = this.add.graphics();
     this.ribbonText = this.add.text(0, 0, '', textStyle(30, '#ffffff')).setOrigin(0.5);
-    this.ribbon = this.add.container(W / 2, top + 290, [rg, this.ribbonText]).setDepth(19).setVisible(false).setAngle(-3);
+    this.ribbonHint = this.add.text(0, 0, '', uiText(21, '#fff3c4', '800')).setOrigin(0.5);
+    this.ribbon = this.add.container(W / 2, top + 290, [this.ribbonG, this.ribbonText, this.ribbonHint]).setDepth(19).setVisible(false).setAngle(-3);
 
     for (let i = 0; i < 4; i++) {
       this.toasts.push(
@@ -440,12 +438,23 @@ export class HudScene extends Phaser.Scene {
     }
     this.held.setVisible(false);
     this.refreshCards(true);
-    if (Math.abs(vx) > 650 && Math.abs(tx) > 40 && Math.abs(tx) > Math.abs(ty)) {
+    // Dodging only exists while something is coming at you — otherwise stray
+    // taps would swing the whole view left and right for nothing.
+    const sideSwipe = Math.abs(vx) > 650 && Math.abs(tx) > 40 && Math.abs(tx) > Math.abs(ty);
+    const tap = !d.onCard && dist < 24 && t - d.t0 < 450;
+    if (!g.threat) {
+      if ((tap || sideSwipe) && g.state === 'play' && this.t - this.lastTapHint > 6) {
+        this.lastTapHint = this.t;
+        this.toast('Свайпни вгору, щоб кинути 👆', '#ffffff');
+      }
+      return;
+    }
+    if (sideSwipe) {
       g.dodge(Math.sign(tx));
       return;
     }
     // a tap (not on a card) dodges toward that side
-    if (!d.onCard && dist < 24 && t - d.t0 < 450) g.dodge(x < L.W / 2 ? -1 : 1);
+    if (tap) g.dodge(x < L.W / 2 ? -1 : 1);
   }
 
   private shakeCard(c: Card, msg: string) {
@@ -487,11 +496,24 @@ export class HudScene extends Phaser.Scene {
     audio.pop(0.8);
   }
 
-  eventBanner(text: string) {
+  eventBanner(text: string, hint = '') {
     const r = this.ribbon;
+    const W = L.W;
     this.tweens.killTweensOf(r);
-    this.ribbonText.setText(text);
+    // red band; taller when it carries a hint line explaining the event
+    const hh = hint ? 50 : 30;
+    const g = this.ribbonG;
+    g.clear();
+    g.fillStyle(0x1a0f1f, 1);
+    g.fillRect(-W / 2 - 20, -hh - 6, W + 40, hh * 2 + 12);
+    g.fillStyle(0xe8323c, 1);
+    g.fillRect(-W / 2 - 20, -hh, W + 40, hh * 2);
+    g.fillStyle(0xffffff, 0.2);
+    g.fillRect(-W / 2 - 20, -hh, W + 40, 8);
+    this.ribbonText.setText(text).setY(hint ? -16 : 0);
     this.ribbonText.setScale(Math.min(1, (L.W - 60) / this.ribbonText.width));
+    this.ribbonHint.setText(hint).setY(24).setVisible(!!hint);
+    this.ribbonHint.setScale(Math.min(1, (L.W - 60) / Math.max(1, this.ribbonHint.width)));
     r.setVisible(true).setX(-L.W);
     this.tweens.add({ targets: r, x: L.W / 2, duration: 320, ease: 'Back.Out' });
     this.tweens.add({ targets: r, x: L.W * 2, delay: 2400, duration: 300, ease: 'Cubic.In', onComplete: () => r.setVisible(false) });
@@ -794,6 +816,23 @@ export class HudScene extends Phaser.Scene {
     return out;
   }
 
+  /** «Звання» from the stats + the round's quote, as two centred lines. */
+  private rankQuote(stats: RoundStats, quote: string, y: number) {
+    const W = L.W;
+    const out: Phaser.GameObjects.Text[] = [];
+    const rank = this.add.text(W / 2, y, `🏅 ЗВАННЯ: ${funTitle(stats)}`, uiText(23, '#ffd23f', '800')).setOrigin(0.5);
+    if (rank.width > 580) rank.setScale(580 / rank.width);
+    out.push(rank);
+    if (quote) {
+      const q = this.add
+        .text(W / 2, y + 38, `«${quote.replace(/[.!]+$/, '')}» — Сергій`, uiText(19, '#e8dcf5', '700', { align: 'center', wordWrap: { width: 560 } }))
+        .setOrigin(0.5, 0.5);
+      if (q.width > 580) q.setScale(580 / q.width);
+      out.push(q);
+    }
+    return out;
+  }
+
   private countUp(text: Phaser.GameObjects.Text, from: number, to: number, dur = 900) {
     const o = { v: from };
     this.tweens.add({
@@ -898,10 +937,11 @@ export class HudScene extends Phaser.Scene {
     bonus: { win: number; lives: number; acc: number };
     total: number;
     round: number;
+    quote: string;
   }) {
     const W = L.W;
     const H = L.H;
-    const ph = 640;
+    const ph = 730;
     const cy = H - Math.max(L.safeBottom, 12) - ph / 2 - 20;
     const p = this.panel(W / 2, cy, 640, ph);
     const top = cy - ph / 2;
@@ -916,7 +956,8 @@ export class HudScene extends Phaser.Scene {
       .setOrigin(0.5);
     const cols = this.statCols(d.stats, W / 2, top + 372, 580);
     const total = this.add.text(W / 2, top + 452, `ЗАГАЛОМ: ${fmt(d.total)}`, textStyle(22, '#ffffff', { strokeThickness: 0 })).setOrigin(0.5);
-    const next = new Button(this, W / 2 + 80, top + 548, {
+    const rq = this.rankQuote(d.stats, d.quote, top + 510);
+    const next = new Button(this, W / 2 + 80, top + 636, {
       w: 380,
       h: 90,
       label: 'ДАЛІ  →',
@@ -928,7 +969,7 @@ export class HudScene extends Phaser.Scene {
         g.scene.restart({ mode: 'campaign', round: Math.min(5, d.round + 1), runScore: d.total });
       },
     });
-    const menu = new Button(this, W / 2 - 200, top + 548, {
+    const menu = new Button(this, W / 2 - 200, top + 636, {
       w: 150,
       h: 90,
       label: 'МЕНЮ',
@@ -937,14 +978,14 @@ export class HudScene extends Phaser.Scene {
       textColor: '#ffffff',
       onClick: () => this.toMenu(),
     });
-    this.openModal([p, hdr, title, line, scoreLbl, score, bonus, ...cols, total, next, menu], 0.3);
+    this.openModal([p, hdr, title, line, scoreLbl, score, bonus, ...cols, total, ...rq, next, menu], 0.3);
     this.countUp(score, 0, d.stats.score);
   }
 
-  showGameOver(d: { endless: boolean; stats: RoundStats; total: number; wave: number; record: boolean; round: number }) {
+  showGameOver(d: { endless: boolean; stats: RoundStats; total: number; wave: number; record: boolean; round: number; quote: string }) {
     const W = L.W;
     const H = L.H;
-    const ph = 640;
+    const ph = 730;
     const cy = H - Math.max(L.safeBottom, 12) - ph / 2 - 20;
     const p = this.panel(W / 2, cy, 640, ph, 0x2c1422);
     const top = cy - ph / 2;
@@ -959,7 +1000,8 @@ export class HudScene extends Phaser.Scene {
     const best = d.endless ? save.endlessHigh : save.highScore;
     const bestT = this.add.text(W / 2, top + 266, `Найкращий результат: ${fmt(best)}`, uiText(18, '#cbb8da', '700')).setOrigin(0.5);
     const cols = this.statCols(d.stats, W / 2, top + 344, 580);
-    const again = new Button(this, W / 2 + 80, top + 452, {
+    const rq = this.rankQuote(d.stats, d.quote, top + 424);
+    const again = new Button(this, W / 2 + 80, top + 540, {
       w: 380,
       h: 88,
       label: 'ЩЕ РАЗ',
@@ -970,7 +1012,7 @@ export class HudScene extends Phaser.Scene {
         g.scene.restart({ mode: g.mode, round: g.def.id, runScore: g.runStart });
       },
     });
-    const menu = new Button(this, W / 2 - 200, top + 452, {
+    const menu = new Button(this, W / 2 - 200, top + 540, {
       w: 150,
       h: 88,
       label: 'МЕНЮ',
@@ -979,20 +1021,20 @@ export class HudScene extends Phaser.Scene {
       textColor: '#ffffff',
       onClick: () => this.toMenu(),
     });
-    const share = new Button(this, W / 2, top + 560, {
+    const share = new Button(this, W / 2, top + 646, {
       w: 560,
       h: 70,
       label: '↗  ПОДІЛИТИСЯ РЕЗУЛЬТАТОМ',
       size: 20,
       color: 0x2a2233,
       textColor: '#ffffff',
-      onClick: () => this.doShare(d.total, d.endless),
+      onClick: () => this.doShare(d.total, d.endless, funTitle(d.stats)),
     });
-    this.openModal([p, title, line, scoreLbl, score, bestT, ...cols, again, menu, share], 0.4);
+    this.openModal([p, title, line, scoreLbl, score, bestT, ...cols, ...rq, again, menu, share], 0.4);
     this.countUp(score, 0, d.total);
   }
 
-  showVictory(d: { total: number; stats: RoundStats; bonus: { win: number; lives: number; acc: number }; firstClear: boolean }) {
+  showVictory(d: { total: number; stats: RoundStats; bonus: { win: number; lives: number; acc: number }; firstClear: boolean; quote: string }) {
     const W = L.W;
     const H = L.H;
     const top0 = hudTop();
@@ -1000,7 +1042,7 @@ export class HudScene extends Phaser.Scene {
     const t1 = this.add.text(W / 2, top0 + 70, 'СЕРГІЙ', textStyle(84, '#ff3b30', { stroke: '#ffffff', strokeThickness: 12 })).setOrigin(0.5).setAngle(-3);
     const t2 = this.add.text(W / 2, top0 + 150, 'ПРОГРАВ ВСІМ', textStyle(56, '#ffffff', { stroke: '#1a0f1f', strokeThickness: 12 })).setOrigin(0.5).setAngle(-3);
     const t3 = this.add.text(W / 2, top0 + 214, 'Дивно. Хто б міг подумати.', uiText(26, '#ffffff', '800', { stroke: '#1a0f1f', strokeThickness: 7 })).setOrigin(0.5);
-    const ph = 640;
+    const ph = 700;
     const cy = H - Math.max(L.safeBottom, 12) - ph / 2 - 10;
     const p = this.panel(W / 2, cy, 640, ph, 0x1f1726);
     const top = cy - ph / 2;
@@ -1008,10 +1050,11 @@ export class HudScene extends Phaser.Scene {
     const score = this.add.text(W / 2, top + 92, '0', textStyle(70, '#ffd23f')).setOrigin(0.5);
     const rec = this.add.text(W / 2, top + 140, `Найкращий результат: ${fmt(save.highScore)}`, uiText(17, '#cbb8da', '700')).setOrigin(0.5);
     const cols = this.statCols(d.stats, W / 2, top + 206, 590);
+    const rq = this.rankQuote(d.stats, d.quote, top + 270);
     const unlock = this.add
-      .text(W / 2, top + 286, d.firstClear ? '🔓 Відкрито: «СЕРГІЙ: НЕ ТРЕБА БУЛО»' : '«СЕРГІЙ: НЕ ТРЕБА БУЛО» чекає на реванш', uiText(19, '#9dff8a', '800', { align: 'center' }))
+      .text(W / 2, top + 348, d.firstClear ? '🔓 Відкрито: «СЕРГІЙ: НЕ ТРЕБА БУЛО»' : '«СЕРГІЙ: НЕ ТРЕБА БУЛО» чекає на реванш', uiText(19, '#9dff8a', '800', { align: 'center' }))
       .setOrigin(0.5);
-    const again = new Button(this, W / 2, top + 366, {
+    const again = new Button(this, W / 2, top + 424, {
       w: 580,
       h: 80,
       label: 'ЩЕ РАЗ',
@@ -1024,7 +1067,7 @@ export class HudScene extends Phaser.Scene {
         g.scene.restart({ mode: 'campaign', round: 1, runScore: 0 });
       },
     });
-    const rematch = new Button(this, W / 2, top + 460, {
+    const rematch = new Button(this, W / 2, top + 516, {
       w: 580,
       h: 80,
       label: 'РЕВАНШ ІЗ СЕРГІЄМ',
@@ -1038,17 +1081,17 @@ export class HudScene extends Phaser.Scene {
         g.scene.start('Endless');
       },
     });
-    const share = new Button(this, W / 2, top + 556, {
+    const share = new Button(this, W / 2, top + 610, {
       w: 580,
       h: 74,
       label: '↗  ПОДІЛИТИСЯ РЕЗУЛЬТАТОМ',
       size: 21,
       color: 0x2a2233,
       textColor: '#ffffff',
-      onClick: () => this.doShare(d.total, false),
+      onClick: () => this.doShare(d.total, false, funTitle(d.stats)),
     });
     this.tweens.add({ targets: this.topUi, alpha: 0, duration: 300 });
-    const c = this.openModal([t1, t2, t3, p, lbl, score, rec, ...cols, unlock, again, rematch, share], 0.12);
+    const c = this.openModal([t1, t2, t3, p, lbl, score, rec, ...cols, ...rq, unlock, again, rematch, share], 0.12);
     for (const o of [t1, t2]) {
       o.setScale(0);
       this.tweens.add({ targets: o, scale: 1, duration: 500, ease: 'Back.Out', delay: o === t2 ? 150 : 0 });
@@ -1057,8 +1100,8 @@ export class HudScene extends Phaser.Scene {
     this.countUp(score, 0, d.total, 1400);
   }
 
-  private async doShare(score: number, endless: boolean) {
-    const r = await shareScore(score, endless);
+  private async doShare(score: number, endless: boolean, rank?: string) {
+    const r = await shareScore(score, endless, rank);
     if (r === 'copied') this.toast('Скопійовано! Встав у чат 😉', '#9dff8a');
     else if (r === 'fail') this.toast('Не вдалося поділитися', '#ff8a8a');
   }

@@ -10,12 +10,14 @@ import {
   COMBO_STEPS,
   ENDLESS,
   EVENTS,
+  EVENT_HINTS,
   HEAD_CAPTIONS,
   ITEMS,
   LINES,
   ROUNDS,
   comboMult,
-  isSignature,
+  SIGNATURE,
+  signatureIndex,
   type ItemDef,
   type ItemKind,
   type RoundDef,
@@ -186,6 +188,9 @@ export class GameScene extends Phaser.Scene {
   private phoneLine = 0;
   private rageFridge = false;
   private lastSpotlight = -99;
+  /** the round's most memorable line (a catchphrase if he said one) */
+  quote = '';
+  private lastLine = '';
   private announceThen: (() => void) | null = null;
   private lastCaptionT = -99;
   private phoneBonusShown = false;
@@ -271,6 +276,8 @@ export class GameScene extends Phaser.Scene {
     this.eventT = rand(14, 22);
     this.rageFridge = false;
     this.lastSpotlight = -99;
+    this.quote = '';
+    this.lastLine = '';
     this.announceThen = null;
     this.lastCaptionT = -99;
     this.tutorialAttackHold = this.def.id === 1 && !save.tutorialDone;
@@ -955,6 +962,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private nextWave() {
+    this.slowmo(0.5, 0.6);
     this.wave++;
     this.patience = 100;
     this.moodLevel = 0;
@@ -1018,7 +1026,19 @@ export class GameScene extends Phaser.Scene {
     this.hud.clearThreat();
   }
 
+  /** The knockout blow: slow motion and a push-in on Sergii's face. */
+  private finisher(strength = 1) {
+    const hc = this.sergii.headCenter();
+    this.fx.focus.x = this.stage.px(hc.x);
+    this.fx.focus.y = this.stage.py(hc.y);
+    this.fx.focus.k = 0.1 * strength;
+    this.slowmo(0.28, 1.1 * strength);
+    audio.sting();
+    vibrate([30, 40, 90]);
+  }
+
   private winRound() {
+    this.finisher();
     this.finishState();
     this.act = 'tantrum';
     this.actT = 99;
@@ -1059,11 +1079,13 @@ export class GameScene extends Phaser.Scene {
         bonus: { win: winBonus, lives: livesBonus, acc: accBonus },
         total: this.score,
         round: this.def.id,
+        quote: this.quote || this.lastLine,
       }),
     );
   }
 
   private finalVictory() {
+    this.finisher(1.2);
     this.finishState();
     this.rage = false;
     const s = this.sergii;
@@ -1124,6 +1146,7 @@ export class GameScene extends Phaser.Scene {
         stats: this.stats,
         bonus: { win: winBonus, lives: livesBonus, acc: accBonus },
         firstClear,
+        quote: this.quote || this.lastLine,
       }),
     );
   }
@@ -1153,6 +1176,7 @@ export class GameScene extends Phaser.Scene {
         wave: this.wave,
         record: isRecord,
         round: this.def.id,
+        quote: this.quote || this.lastLine,
       }),
     );
   }
@@ -1160,8 +1184,22 @@ export class GameScene extends Phaser.Scene {
   // ================================================================== Sergii AI
   private say(text: string, force = false) {
     if (!force && (this.speech.cooldown > 0 || this.speech.busy)) return;
-    const special = isSignature(text);
+    const idx = signatureIndex(text);
+    const special = idx >= 0;
     this.speech.say(text, special);
+    this.lastLine = text;
+    if (special) {
+      this.quote = text;
+      // phrase collection: celebrate each catchphrase the first time it's heard
+      if (!save.heard.includes(idx)) {
+        save.heard.push(idx);
+        persist();
+        const n = save.heard.length;
+        this.time.delayedCall(1300, () =>
+          this.hud.toast(n >= SIGNATURE.length ? `💬 Усі фрази Сергія зібрано! ${n}/${n}` : `💬 Нова фраза Сергія: ${n}/${SIGNATURE.length}`, '#ffe066'),
+        );
+      }
+    }
     this.speech.cooldown = 6.5;
     // the team's catchphrases get a beat of slow motion so they land
     if (special && this.state === 'play' && this.simTime - this.lastSpotlight > 7) {
@@ -1594,7 +1632,7 @@ export class GameScene extends Phaser.Scene {
     if (ev === 'van') return this.deliveryVan();
     if (ev === 'phone') return this.phoneCall();
     if (ev === 'tech') {
-      this.hud.eventBanner(EVENTS.tech);
+      this.hud.eventBanner(EVENTS.tech, EVENT_HINTS.tech);
       s.setHeld('wrench');
       this.announce(0.5, 1.5, LINES.tech, () => this.startAttack('wrench', this.teleTime() + 0.2));
       return;
@@ -1603,26 +1641,26 @@ export class GameScene extends Phaser.Scene {
     // the calm events never land right on top of an attack
     this.attackT = Math.max(this.attackT, 3);
     if (ev === 'can') {
-      this.hud.eventBanner(EVENTS.can);
+      this.hud.eventBanner(EVENTS.can, EVENT_HINTS.can);
       this.say(LINES.back, true);
       this.act = 'offscreen';
       this.offSide = s.x >= 0 ? 1 : -1;
       this.offT = 0;
       this.targetX = this.offSide * 760;
     } else if (ev === 'shield') {
-      this.hud.eventBanner(EVENTS.shield);
+      this.hud.eventBanner(EVENTS.shield, EVENT_HINTS.shield);
       s.setShield(true);
       this.shieldT = 5;
       this.time.delayedCall(500, () => this.say(LINES.shield, true));
       audio.clang();
     } else if (ev === 'rush') {
-      this.hud.eventBanner(EVENTS.rush);
+      this.hud.eventBanner(EVENTS.rush, EVENT_HINTS.rush);
       this.rushT = 4;
       audio.setRush(true);
       audio.whistle();
       this.attackT = Math.min(this.attackT, 2);
     } else {
-      this.hud.eventBanner(EVENTS.shoe);
+      this.hud.eventBanner(EVENTS.shoe, EVENT_HINTS.shoe);
       s.setHeld('slipper');
       this.announce(0.5, 1.4, LINES.shoe, () => this.startAttack('slipper', this.teleTime() + 0.1));
     }
@@ -1648,7 +1686,7 @@ export class GameScene extends Phaser.Scene {
   /** «РОЗВОЗКА ПРИЇХАЛА»: a delivery van drives past and restocks the player. */
   private deliveryVan() {
     const st = this.stage;
-    this.hud.eventBanner(EVENTS.van);
+    this.hud.eventBanner(EVENTS.van, EVENT_HINTS.van);
     audio.honk();
     this.attackT = Math.max(this.attackT, 4);
     // drives along the fence, visible beside Sergii's head
@@ -1685,7 +1723,7 @@ export class GameScene extends Phaser.Scene {
   /** «СЕРГІЮ ДЗВОНЯТЬ»: he answers the phone, stands still, hits count double. */
   private phoneCall() {
     const s = this.sergii;
-    this.hud.eventBanner(EVENTS.phone);
+    this.hud.eventBanner(EVENTS.phone, EVENT_HINTS.phone);
     audio.ring();
     this.act = 'phone';
     this.actT = 5.6;
@@ -1701,7 +1739,7 @@ export class GameScene extends Phaser.Scene {
 
   /** «ХОЛОДИЛЬНИК!»: two-handed overhead fridge throw with a long, fair telegraph. */
   private fridgeAttack() {
-    this.hud.eventBanner(EVENTS.fridge);
+    this.hud.eventBanner(EVENTS.fridge, EVENT_HINTS.fridge);
     // he eyes the fridge first, then lifts it
     this.sergii.headRot.kick(-2);
     this.announce(0.45, 1.5, LINES.fridge, () => this.startAttack('fridge', this.teleTime() + 0.5));
@@ -2055,6 +2093,6 @@ export class GameScene extends Phaser.Scene {
     const top = this.sergii.facePoint({ x: 40, y: -690 });
     this.speech.update(dtR, this.stage.px(this.sergii.headCenter().x), Math.max(hudTop() + 330, this.stage.py(top.y) - 30));
     this.fx.camera(dtR);
-    if (this.fx.focus.k > 0 && this.act !== 'catchHold') this.fx.focus.k = Math.max(0, this.fx.focus.k - dtR * 0.3);
+    if (this.fx.focus.k > 0 && this.act !== 'catchHold') this.fx.focus.k = Math.max(0, this.fx.focus.k - dtR * (this.state === 'end' ? 0.06 : 0.3));
   }
 }

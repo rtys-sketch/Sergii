@@ -4,11 +4,12 @@ export function gameUrl() {
   return location.href.split('#')[0].split('?')[0];
 }
 
-export async function shareScore(score: number, endless = false): Promise<'shared' | 'copied' | 'cancel' | 'fail'> {
+export async function shareScore(score: number, endless = false, rank?: string): Promise<'shared' | 'copied' | 'cancel' | 'fail'> {
   const url = gameUrl();
+  const title = rank ? ` Моє звання: «${rank}».` : '';
   const text = endless
-    ? `Я набрав ${fmt(score)} у режимі «Сергій: не треба було». А ти?`
-    : `Я набрав ${fmt(score)} у “Сергій проти всіх”. А ти?`;
+    ? `Я набрав ${fmt(score)} у режимі «Сергій: не треба було».${title} А ти?`
+    : `Я набрав ${fmt(score)} у “Сергій проти всіх”.${title} А ти?`;
   const nav = navigator as Navigator & { share?: (d: ShareData) => Promise<void> };
   if (nav.share) {
     try {

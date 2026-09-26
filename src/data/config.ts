@@ -237,10 +237,14 @@ export const SIGNATURE = [
 const norm = (s: string) => s.toLowerCase().replace(/[.,!?…’'«»]/g, '').replace(/\s+/g, ' ').trim();
 const SIGNATURE_NORM = SIGNATURE.map(norm);
 
-/** True for the team's catchphrases (any case / punctuation). */
-export function isSignature(text: string) {
+/** Index of the team catchphrase in `text` (any case / punctuation), or -1. */
+export function signatureIndex(text: string) {
   const t = norm(text);
-  return SIGNATURE_NORM.some((s) => t.includes(s));
+  return SIGNATURE_NORM.findIndex((s) => t.includes(s));
+}
+
+export function isSignature(text: string) {
+  return signatureIndex(text) >= 0;
 }
 
 export const LINES = {
@@ -280,6 +284,18 @@ export const EVENTS = {
   phone: 'СЕРГІЮ ДЗВОНЯТЬ',
   tech: 'ТЕХНІЧКА!',
   fridge: 'ХОЛОДИЛЬНИК!',
+};
+
+/** One-line «what does this mean for me» under each event ribbon. */
+export const EVENT_HINTS: Record<keyof typeof EVENTS, string> = {
+  can: 'Він повернеться з банкою — готуйся ухилятися',
+  shield: 'Цілься в голову, повз кришку',
+  rush: 'Сергій кидатиме частіше',
+  shoe: 'Тапок полетить у тебе — тапни вбік',
+  van: 'Запаси поповнено!',
+  phone: 'Поки він говорить — влучання x2',
+  tech: 'Зараз прилетить ключ — тапни вбік',
+  fridge: 'Холодильник летить повільно. Тапни вбік!',
 };
 
 /** Fun title for the result screens, picked from the round stats. */

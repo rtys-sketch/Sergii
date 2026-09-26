@@ -15,6 +15,8 @@ export interface SaveData {
   music: boolean;
   difficulty: Difficulty;
   runs: number;
+  /** indices of Sergii's catchphrases the player has heard (SIGNATURE) */
+  heard: number[];
 }
 
 const KEY = 'sergii-proty-vsikh.v1';
@@ -34,6 +36,7 @@ const DEFAULTS: SaveData = {
   music: true,
   difficulty: 'normal',
   runs: 0,
+  heard: [],
 };
 
 function load(): SaveData {
@@ -41,7 +44,9 @@ function load(): SaveData {
     const raw = localStorage.getItem(KEY);
     if (!raw) return { ...DEFAULTS };
     const parsed = JSON.parse(raw);
-    return { ...DEFAULTS, ...parsed, v: 1 };
+    const out = { ...DEFAULTS, ...parsed, v: 1 } as SaveData;
+    if (!Array.isArray(out.heard)) out.heard = [];
+    return out;
   } catch {
     return { ...DEFAULTS };
   }
@@ -58,6 +63,6 @@ export function persist() {
 }
 
 export function resetProgress() {
-  Object.assign(save, { ...DEFAULTS, sound: save.sound, music: save.music, difficulty: save.difficulty });
+  Object.assign(save, { ...DEFAULTS, heard: [], sound: save.sound, music: save.music, difficulty: save.difficulty });
   persist();
 }

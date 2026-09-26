@@ -13,7 +13,7 @@ export class Stage {
   cx = L.W / 2;
   hy = 0;
   K = K;
-  cam = new Spring(0, 0, 420, 34);
+  cam = new Spring(0, 0, 300, 34); // critically damped: the view glides, never wobbles
   far: Phaser.GameObjects.Image;
   mid: Phaser.GameObjects.Image;
   ground: Phaser.GameObjects.Image;
