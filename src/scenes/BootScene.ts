@@ -26,6 +26,8 @@ export class BootScene extends Phaser.Scene {
   preload() {
     setLoader(45, 'Завантажуємо Сергія…');
     this.load.image('sergii-head', 'assets/sergii-head.webp');
+    this.load.image('sergii-head-happy', 'assets/sergii-head-happy.webp');
+    this.load.image('sergii-head-angry', 'assets/sergii-head-angry.webp');
     this.load.on('progress', (v: number) => setLoader(45 + v * 30));
   }
 

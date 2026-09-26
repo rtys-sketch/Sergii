@@ -47,6 +47,8 @@ export interface RoundStats {
 type Act =
   | 'free'
   | 'windup'
+  | 'bellyWindup'
+  | 'bellyRecover'
   | 'recover'
   | 'catching'
   | 'catchHold'
@@ -108,6 +110,7 @@ const G = 2600;
 const Z0 = 0.42;
 const ZEND = 0.2;
 const LANE_X = 95;
+const BELLY_FLIGHT = 0.58;
 
 export const itemScale = (kind: ItemKind, z = 1) => (ITEMS[kind].size * K) / (0.78 * ITEM_PX) / z;
 
@@ -179,6 +182,10 @@ export class GameScene extends Phaser.Scene {
   private lastEvent = '';
   private rushT = 0;
   private shieldT = 0;
+  private bellyCooldown = 3;
+  private bellyLane = 0;
+  private bellyFlight = 0;
+  private bellyFx!: Phaser.GameObjects.Graphics;
   private offSide = 1;
   private offT = 0;
   private crowdJoinT = 3;
@@ -234,6 +241,9 @@ export class GameScene extends Phaser.Scene {
     this.atkCombo = 0;
     this.rushT = 0;
     this.shieldT = 0;
+    this.bellyCooldown = 3;
+    this.bellyLane = 0;
+    this.bellyFlight = 0;
     this.crowdJoinT = 3.5;
     this.crowdThrowT = 5;
     this.queueAnnounced = false;
@@ -329,6 +339,7 @@ export class GameScene extends Phaser.Scene {
     this.crowd = new Crowd(this, this.stage);
     this.speech = new Speech(this);
     this.trail = this.add.graphics().setDepth(39);
+    this.bellyFx = this.add.graphics().setDepth(55);
     this.sergii.onSteam = (x, y) => this.fx.steam(x, y);
     if (this.mode === 'endless') this.sergii.crown.setVisible(true);
     this.sergii.x = 0;
@@ -399,7 +410,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   get threat() {
-    return this.act === 'windup' || this.incoming.some((i) => i.active && !i.resolved);
+    return this.act === 'windup' || this.act === 'bellyWindup' || this.bellyFlight > 0 || this.incoming.some((i) => i.active && !i.resolved);
   }
 
   // ================================================================== input API (called by HUD)
@@ -818,6 +829,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private missLines() {
+    this.sergii.smileFor(1.2);
     if (this.missStreak === 3) this.say(save.difficulty === 'easy' ? LINES.miss3easy : LINES.miss3, true);
     else if (this.missStreak === 5) this.say(LINES.miss5, true);
     else if (chance(0.22)) this.say(pick(LINES.miss));
@@ -886,6 +898,7 @@ export class GameScene extends Phaser.Scene {
     this.rageElapsed = 0;
     this.patience = this.def.rageAt;
     this.clearIncoming();
+    this.bellyCooldown = 4;
     this.act = 'tantrum';
     this.actT = 1.6;
     const s = this.sergii;
@@ -920,6 +933,7 @@ export class GameScene extends Phaser.Scene {
     this.sergii.moodLevel = 0;
     this.sergii.tintTarget = 0;
     this.sergii.shake = 0;
+    this.bellyCooldown = 5;
     this.hearts = Math.min(3, this.hearts + 1);
     this.hud.setDanger(0);
     audio.setIntensity(this.wave >= 5 ? 1 : 0);
@@ -949,10 +963,13 @@ export class GameScene extends Phaser.Scene {
       }
     }
     this.hud.clearThreat();
-    if (this.act === 'windup') {
-      this.sergii.setHeld(null);
-      this.sergii.visibleBang = false;
-    }
+    this.hud.showDodgeHint(false);
+    this.bellyFlight = 0;
+    this.bellyFx.clear();
+    this.sergii.setHeld(null);
+    this.sergii.visibleBang = false;
+    this.sergii.squash.target = 0;
+    this.sergii.headScale.target = 1;
   }
 
   private finishState() {
@@ -1080,6 +1097,8 @@ export class GameScene extends Phaser.Scene {
     this.finishState();
     this.act = 'laugh';
     this.actT = 0;
+    this.sergii.rage = false;
+    this.sergii.smileFor(99);
     audio.lose();
     this.hud.setDanger(0);
     this.say(this.mode === 'endless' ? 'Не треба було.' : 'Ха. Ще хтось?', true);
@@ -1216,6 +1235,7 @@ export class GameScene extends Phaser.Scene {
     this.act = 'catchHold';
     this.actT = 0.45;
     this.stats.catches++;
+    s.smileFor(2.2);
     this.breakCombo();
     audio.slap();
     audio.sting();
@@ -1236,6 +1256,7 @@ export class GameScene extends Phaser.Scene {
     this.atkKind = kind;
     this.atkCombo = combo;
     this.atkLane = this.lane;
+    s.angryFor(1.2);
     s.vx = 0;
     if (s.heldKind !== kind) s.setHeld(kind);
     s.armR.target = -3.2;
@@ -1356,6 +1377,7 @@ export class GameScene extends Phaser.Scene {
     vibrate([40, 30, 60]);
     this.sergii.headRot.kick(2.5);
     this.sergii.headY.kick(-150);
+    this.sergii.smileFor(2.2);
     if (!save.dodgeTutorialDone) {
       save.dodgeTutorialDone = true;
       persist();
@@ -1374,6 +1396,7 @@ export class GameScene extends Phaser.Scene {
     this.hud.dodged();
     this.hud.clearThreat();
     this.hud.showDodgeHint(false);
+    this.sergii.angryFor(1.2);
     if (!save.dodgeTutorialDone) {
       save.dodgeTutorialDone = true;
       persist();
@@ -1399,6 +1422,101 @@ export class GameScene extends Phaser.Scene {
   private teleTime() {
     const t = this.def.telegraph + this.tune.tele;
     return Math.max(0.6, t);
+  }
+
+  /** Sergii charges a directed shockwave from his belly. The marked lane is
+   * locked when charging starts, so a left/right dodge always has a safe side. */
+  private startBellyPower() {
+    const s = this.sergii;
+    this.act = 'bellyWindup';
+    this.actT = save.difficulty === 'easy' ? 1.9 : 1.55;
+    this.bellyLane = this.lane;
+    this.bellyCooldown = rand(16, 21);
+    this.attackT = Math.max(this.attackT, 2.5);
+    s.vx = 0;
+    s.armR.target = -1.5;
+    s.armL.target = 1.5;
+    s.headScale.target = 1.08;
+    s.visibleBang = true;
+    s.angryFor(3);
+    this.hud.showThreat(this.bellyLane, this.actT, 'СИЛА ПУПКА!');
+    this.hud.showDodgeHint(true);
+    this.say(LINES.belly, true);
+    audio.warn();
+    audio.windup();
+  }
+
+  private releaseBellyPower() {
+    const s = this.sergii;
+    s.visibleBang = false;
+    s.armR.target = 0.12;
+    s.armL.target = -0.12;
+    s.headScale.target = 1;
+    s.squash.kick(3.5);
+    this.bellyFlight = BELLY_FLIGHT;
+    this.act = 'bellyRecover';
+    this.actT = 0.85;
+    this.fx.shake(0.4);
+    this.fx.punchZoom(1.045);
+    audio.belly();
+    vibrate(30);
+  }
+
+  private updateBellyPower(dt: number) {
+    const g = this.bellyFx;
+    g.clear();
+    const charging = this.act === 'bellyWindup';
+    if (!charging && this.bellyFlight <= 0) return;
+    const bx = this.stage.px(this.sergii.neck.x);
+    const by = this.stage.py(this.sergii.neck.y + 195);
+    const tx = L.W / 2 + this.bellyLane * 175;
+    const bottom = L.H * 0.82;
+    if (charging) {
+      const pulse = 0.5 + 0.5 * Math.sin(this.simTime * 20);
+      const radius = 32 + pulse * 18;
+      g.fillStyle(0xffd23f, 0.16 + pulse * 0.14).fillCircle(bx, by, radius);
+      g.lineStyle(5 + pulse * 3, 0xff9f1c, 0.7).strokeCircle(bx, by, radius + 10);
+      g.lineStyle(4, 0xffd23f, 0.2 + pulse * 0.2).lineBetween(bx, by, tx, bottom);
+    } else {
+      this.bellyFlight = Math.max(0, this.bellyFlight - dt);
+      const u = 1 - this.bellyFlight / BELLY_FLIGHT;
+      const reach = by + (bottom - by) * Math.min(1, u * 1.8);
+      const width = 40 + 100 * u;
+      g.fillStyle(0xffd23f, 0.28 * (1 - u)).fillTriangle(bx, by, tx - width, reach, tx + width, reach);
+      g.lineStyle(12 * (1 - u) + 3, 0xffffff, 0.85 * (1 - u)).strokeCircle(bx, by, 45 + u * L.W);
+      g.lineStyle(7, 0xff9f1c, 0.8 * (1 - u)).strokeCircle(bx, by, 20 + u * L.W * 0.8);
+      if (this.bellyFlight <= 0) this.resolveBellyPower();
+    }
+  }
+
+  private resolveBellyPower() {
+    this.hud.clearThreat();
+    this.hud.showDodgeHint(false);
+    if (!save.dodgeTutorialDone) {
+      save.dodgeTutorialDone = true;
+      persist();
+    }
+    if (this.bellyLane === this.lane) {
+      this.hearts = Math.max(0, this.hearts - 1);
+      this.stats.hitBy++;
+      this.hud.powerHit();
+      this.hud.heartsChanged(true);
+      this.fx.shake(0.75);
+      audio.hurt();
+      audio.heart();
+      vibrate([45, 30, 60]);
+      this.sergii.smileFor(2.3);
+      this.say('Оце сила!', true);
+      if (this.hearts <= 0) this.loseRound();
+    } else {
+      this.stats.dodges++;
+      this.addScore(150);
+      this.hud.dodged();
+      this.hud.toast('СИЛА ПУПКА ПОВЗ! +150', '#ffe066');
+      this.fx.sparkles(L.W / 2 + this.bellyLane * 175, L.H * 0.7, 10, [0xffd23f, 0xffffff]);
+      this.sergii.angryFor(1.3);
+      audio.dodge();
+    }
   }
 
   private triggerEvent() {
@@ -1436,6 +1554,7 @@ export class GameScene extends Phaser.Scene {
     const s = this.sergii;
     const def = this.def;
     const speedMul = this.tune.speed * (this.rushT > 0 ? 1.35 : 1) * (this.rage ? 1.25 : 1) * (1 + this.pFactor * 0.35);
+    if (this.state === 'play' && this.moodLevel >= 2) this.bellyCooldown -= dt;
     this.dodgeCD -= dt;
     if (this.flinchT > 0) {
       this.flinchT -= dt;
@@ -1482,6 +1601,10 @@ export class GameScene extends Phaser.Scene {
           this.sidestepT -= dt;
           moveMax = 900;
         }
+        if (this.state === 'play' && this.moodLevel >= 2 && this.bellyCooldown <= 0 && !s.shieldOn && !this.incoming.some((i) => i.active && !i.resolved)) {
+          this.startBellyPower();
+          break;
+        }
         // attacks
         if (!this.tutorialAttackHold && this.state === 'play') {
           this.attackT -= dt;
@@ -1509,6 +1632,20 @@ export class GameScene extends Phaser.Scene {
           s.headScale.target = 1;
           this.release();
         }
+        break;
+      }
+      case 'bellyWindup': {
+        this.actT -= dt;
+        s.squash.target = 0.5 + Math.sin(this.simTime * 16) * 0.15;
+        if (this.actT <= 0) {
+          s.squash.target = 0;
+          this.releaseBellyPower();
+        }
+        break;
+      }
+      case 'bellyRecover': {
+        this.actT -= dt;
+        if (this.actT <= 0) this.act = 'free';
         break;
       }
       case 'recover': {
@@ -1705,6 +1842,7 @@ export class GameScene extends Phaser.Scene {
 
     this.sergii.update(dt);
     this.crowd.update(dt);
+    this.updateBellyPower(dt);
     this.drawTrails();
     const top = this.sergii.facePoint({ x: 40, y: -690 });
     this.speech.update(dtR, this.stage.px(this.sergii.headCenter().x), Math.max(hudTop() + 330, this.stage.py(top.y) - 30));

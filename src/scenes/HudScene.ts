@@ -572,11 +572,11 @@ export class HudScene extends Phaser.Scene {
     this.tweens.add({ targets: t, alpha: 0, y: t.y - 40, delay: 600, duration: 350, onComplete: () => t.setVisible(false) });
   }
 
-  showThreat(lane: number, _dur: number) {
+  showThreat(lane: number, _dur: number, label = 'Сергій кидає в тебе!') {
     this.threatActive = true;
     this.threatLane = lane;
     this.threatT = 0;
-    this.threatTitle.setVisible(true).setScale(0.3);
+    this.threatTitle.setText(label).setColor(label === 'СИЛА ПУПКА!' ? '#ffd23f' : '#ffffff').setVisible(true).setScale(0.3);
     this.tweens.add({ targets: this.threatTitle, scale: 1, duration: 220, ease: 'Back.Out' });
   }
 
@@ -621,6 +621,15 @@ export class HudScene extends Phaser.Scene {
     t.setScale(0.3);
     this.tweens.add({ targets: t, scale: 1, duration: 200, ease: 'Back.Out' });
     this.tweens.add({ targets: t, alpha: 0, delay: 500, duration: 300, onComplete: () => t.destroy() });
+  }
+
+  powerHit() {
+    this.tweens.killTweensOf(this.flash);
+    this.flash.setFillStyle(0xffd23f).setAlpha(0.48);
+    this.tweens.add({ targets: this.flash, alpha: 0, duration: 480 });
+    const t = this.add.text(L.W / 2, L.H * 0.48, 'БУМ!', textStyle(76, '#ffd23f')).setOrigin(0.5).setDepth(12).setScale(0.25);
+    this.tweens.add({ targets: t, scale: 1.15, duration: 220, ease: 'Back.Out' });
+    this.tweens.add({ targets: t, alpha: 0, y: t.y - 70, delay: 450, duration: 380, onComplete: () => t.destroy() });
   }
 
   heartsChanged(lost = false) {
