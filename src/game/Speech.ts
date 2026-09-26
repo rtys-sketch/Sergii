@@ -20,7 +20,7 @@ export class Speech {
         fontStyle: '800',
         color: '#1a0f1f',
         align: 'center',
-        wordWrap: { width: 300 },
+        wordWrap: { width: 330 },
         resolution: Math.min(3.5, L.Z * 1.25),
       })
       .setOrigin(0.5);
@@ -29,8 +29,8 @@ export class Speech {
 
   say(str: string, duration = 1.9) {
     this.text.setText(str);
-    const w = Math.max(120, this.text.width + 40);
-    const h = this.text.height + 26;
+    const w = Math.max(120, this.text.width + 60);
+    const h = this.text.height + 30;
     this.g.clear();
     this.g.fillStyle(0x1a0f1f, 0.22);
     this.g.fillRoundedRect(-w / 2 + 4, -h / 2 + 6, w, h, 22);
@@ -63,7 +63,7 @@ export class Speech {
     this.cooldown = Math.max(0, this.cooldown - dt);
     if (this.life <= 0) return;
     this.life -= dt;
-    const w = this.text.width + 40;
+    const w = this.text.width + 60;
     this.side = headX > L.W / 2 ? -1 : 1;
     let x = headX + this.side * (w / 2 + 40);
     x = Math.max(w / 2 + 12, Math.min(L.W - w / 2 - 12, x));

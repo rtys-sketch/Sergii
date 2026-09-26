@@ -166,6 +166,7 @@ export class GameScene extends Phaser.Scene {
   private targetX = 0;
   private moveT = 0;
   private sidestepT = 0;
+  private flinchT = 0;
   private dodgeT = 0;
   private dodgeCD = 0;
   private catchCD = 0;
@@ -682,6 +683,7 @@ export class GameScene extends Phaser.Scene {
     const dirX = Math.abs(p.X - hc.x) < 12 ? sign(p.vx || 1) : sign(hc.x - p.X);
     const strength = clamp(def.damage / 5, 0.7, 1.6) * (head ? 1 : 0.8);
     this.sergii.punch(dirX, strength, head);
+    if (chance(head ? 0.6 : 0.35)) this.flinch(p.X < hc.x ? -1 : 1, false);
     const tints = def.tint;
     switch (def.kind) {
       case 'tomato':
@@ -1150,6 +1152,16 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /** Mockup-style reaction: an open palm goes up toward the threat (or both arms). */
+  private flinch(side: number, both: boolean) {
+    const s = this.sergii;
+    if (this.act !== 'free' || this.state !== 'play') return;
+    const hc = s.headCenter();
+    if (side > 0 || both) s.armR.target = s.aimArm(1, hc.x + 150, hc.y + 20);
+    if ((side < 0 || both) && !s.shieldOn) s.armL.target = s.aimArm(-1, hc.x - 150, hc.y + 20);
+    this.flinchT = 0.5;
+  }
+
   private execDodge(p: Proj) {
     const s = this.sergii;
     if (this.act !== 'free') return;
@@ -1173,6 +1185,7 @@ export class GameScene extends Phaser.Scene {
       this.moveT = 0.5;
     }
     s.headRot.kick(dir * 1.5);
+    this.flinch(-dir, chance(0.5));
   }
 
   private execCatch(p: Proj) {
@@ -1424,6 +1437,13 @@ export class GameScene extends Phaser.Scene {
     const def = this.def;
     const speedMul = this.tune.speed * (this.rushT > 0 ? 1.35 : 1) * (this.rage ? 1.25 : 1) * (1 + this.pFactor * 0.35);
     this.dodgeCD -= dt;
+    if (this.flinchT > 0) {
+      this.flinchT -= dt;
+      if (this.flinchT <= 0 && this.act === 'free') {
+        s.armR.target = 0.12;
+        if (!s.shieldOn) s.armL.target = -0.12;
+      }
+    }
     this.catchCD -= dt;
     this.runPlans(dt);
     if (this.dodgeT > 0) {
