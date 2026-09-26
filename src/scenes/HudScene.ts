@@ -494,7 +494,7 @@ export class HudScene extends Phaser.Scene {
     this.ribbonText.setScale(Math.min(1, (L.W - 60) / this.ribbonText.width));
     r.setVisible(true).setX(-L.W);
     this.tweens.add({ targets: r, x: L.W / 2, duration: 320, ease: 'Back.Out' });
-    this.tweens.add({ targets: r, x: L.W * 2, delay: 1900, duration: 300, ease: 'Cubic.In', onComplete: () => r.setVisible(false) });
+    this.tweens.add({ targets: r, x: L.W * 2, delay: 2400, duration: 300, ease: 'Cubic.In', onComplete: () => r.setVisible(false) });
     audio.whistle();
   }
 
@@ -505,7 +505,7 @@ export class HudScene extends Phaser.Scene {
     const busy = this.toasts.filter((q) => q !== t && q.visible).length;
     t.setText(text).setColor(color).setVisible(true).setAlpha(0).setY(hudTop() + (this.rageLabel.visible ? 262 : 236) + busy * 36).setScale(0.8);
     this.tweens.add({ targets: t, alpha: 1, scale: 1, duration: 200, ease: 'Back.Out' });
-    this.tweens.add({ targets: t, alpha: 0, y: t.y - 20, delay: 1900, duration: 400, onComplete: () => t.setVisible(false) });
+    this.tweens.add({ targets: t, alpha: 0, y: t.y - 20, delay: 2400, duration: 400, onComplete: () => t.setVisible(false) });
   }
 
   warn(text: string) {
@@ -598,7 +598,7 @@ export class HudScene extends Phaser.Scene {
     this.tweens.killTweensOf(t);
     t.setText(text).setColor('#7dffb0').setVisible(true).setAlpha(1).setY(L.H * 0.56).setScale(0.6);
     this.tweens.add({ targets: t, scale: 1.1, duration: 180, ease: 'Back.Out' });
-    this.tweens.add({ targets: t, alpha: 0, y: t.y - 40, delay: 600, duration: 350, onComplete: () => t.setVisible(false) });
+    this.tweens.add({ targets: t, alpha: 0, y: t.y - 40, delay: 850, duration: 350, onComplete: () => t.setVisible(false) });
   }
 
   showThreat(lane: number, _dur: number, label = 'Сергій кидає в тебе!') {

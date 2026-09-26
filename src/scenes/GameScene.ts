@@ -15,6 +15,7 @@ import {
   LINES,
   ROUNDS,
   comboMult,
+  isSignature,
   type ItemDef,
   type ItemKind,
   type RoundDef,
@@ -58,7 +59,8 @@ type Act =
   | 'intro'
   | 'exhausted'
   | 'laugh'
-  | 'phone';
+  | 'phone'
+  | 'announce';
 
 interface Proj {
   active: boolean;
@@ -111,7 +113,7 @@ const G = 2600;
 const Z0 = 0.42;
 const ZEND = 0.2;
 const LANE_X = 95;
-const BELLY_FLIGHT = 0.58;
+const BELLY_FLIGHT = 0.7;
 
 export const itemScale = (kind: ItemKind, z = 1) => (ITEMS[kind].size * K) / (0.78 * ITEM_PX) / z;
 
@@ -183,6 +185,10 @@ export class GameScene extends Phaser.Scene {
   private lastEvent = '';
   private phoneLine = 0;
   private rageFridge = false;
+  private lastSpotlight = -99;
+  private announceThen: (() => void) | null = null;
+  private lastCaptionT = -99;
+  private phoneBonusShown = false;
   private rushT = 0;
   private shieldT = 0;
   private bellyCooldown = 3;
@@ -262,8 +268,11 @@ export class GameScene extends Phaser.Scene {
       dmg: easy ? 1.2 : 1,
     };
     this.attackT = rand(this.def.attackEvery[0], this.def.attackEvery[1]) * this.tune.atk * (this.def.id === 1 ? 1.1 : 0.8);
-    this.eventT = rand(12, 20);
+    this.eventT = rand(14, 22);
     this.rageFridge = false;
+    this.lastSpotlight = -99;
+    this.announceThen = null;
+    this.lastCaptionT = -99;
     this.tutorialAttackHold = this.def.id === 1 && !save.tutorialDone;
     const early = this.mode === 'campaign' && this.def.id === 1;
     this.ammo = { poop: early ? 0 : this.def.id === 2 ? 8 : 10, can: early ? 4 : this.def.id === 2 ? 5 : 6 };
@@ -423,8 +432,8 @@ export class GameScene extends Phaser.Scene {
   canThrow() {
     return (
       this.state === 'play' &&
-      this.simTime - this.lastThrow > 0.26 &&
-      this.projs.filter((p) => p.active && !p.resolved && !p.npc).length < 5
+      this.simTime - this.lastThrow > 0.32 &&
+      this.projs.filter((p) => p.active && !p.resolved && !p.npc).length < 4
     );
   }
 
@@ -450,7 +459,8 @@ export class GameScene extends Phaser.Scene {
     const Y0 = st.wy(sy, Z0);
     const head = this.sergii.headCenter();
     let Y1 = p <= 1 ? head.y + (1 - p) * 560 : head.y - (p - 1) * 300;
-    const T = (0.62 / def.speed) * (1.2 - 0.24 * Math.min(p, 1.2));
+    // a touch slower than real life so every throw can be followed by eye
+    const T = (0.7 / def.speed) * (1.2 - 0.24 * Math.min(p, 1.2));
     const ang = clamp(Math.atan2(vx, -vy), -0.8, 0.8);
     const tgtY = st.py(Y1);
     const xAim = sx + Math.tan(ang) * Math.max(0, sy - tgtY);
@@ -690,7 +700,10 @@ export class GameScene extends Phaser.Scene {
     const onPhone = this.act === 'phone';
     if (onPhone) pts *= 2;
     this.addScore(pts);
-    if (onPhone && chance(0.5)) this.fx.float(L.W / 2, this.stage.py(-260), 'ВІДВОЛІКСЯ: x2', 34, '#9dff8a', 50, 420);
+    if (onPhone && !this.phoneBonusShown) {
+      this.phoneBonusShown = true;
+      this.fx.float(L.W / 2, this.stage.py(-260), 'ВІДВОЛІКСЯ: x2', 34, '#9dff8a', 50, 900);
+    }
     if (this.crowd.count >= 2 && (head || this.combo % 5 === 0)) audio.cheer();
 
     // damage
@@ -703,7 +716,7 @@ export class GameScene extends Phaser.Scene {
     const dirX = Math.abs(p.X - hc.x) < 12 ? sign(p.vx || 1) : sign(hc.x - p.X);
     const strength = clamp(def.damage / 5, 0.7, 1.6) * (head ? 1 : 0.8);
     this.sergii.punch(dirX, strength, head);
-    if (chance(head ? 0.6 : 0.35)) this.flinch(p.X < hc.x ? -1 : 1, false);
+    if (chance(head ? 0.45 : 0.25)) this.flinch(p.X < hc.x ? -1 : 1, false);
     const tints = def.tint;
     switch (def.kind) {
       case 'tomato':
@@ -757,14 +770,15 @@ export class GameScene extends Phaser.Scene {
     else this.killProj(p);
 
     this.hitStop = Math.max(this.hitStop, (head ? 0.085 : 0.055) + (def.kind === 'can' || def.kind === 'pie' || def.kind === 'gold' ? 0.025 : 0));
-    this.fx.shake(head ? 0.3 : 0.18);
+    this.fx.shake(head ? 0.22 : 0.12);
     this.fx.punchZoom(head ? 1.028 : 1.012);
     vibrate(head ? 22 : 12);
 
     // texts
     const ptsCol = def.kind === 'gold' ? '#ffe066' : head ? '#ffd23f' : '#ffffff';
     this.fx.float(clamp(sx + (head ? 90 : 0), 80, L.W - 80), sy + (head ? 40 : -50), `+${pts}`, head ? 36 : 32, ptsCol, 80, 380);
-    if (head && !p.npc) {
+    if (head && !p.npc && this.simTime - this.lastCaptionT > 1.2) {
+      this.lastCaptionT = this.simTime;
       let cap = pick(HEAD_CAPTIONS);
       if (cap === this.lastCaption) cap = pick(HEAD_CAPTIONS);
       this.lastCaption = cap;
@@ -889,6 +903,10 @@ export class GameScene extends Phaser.Scene {
     if (lvl === 3) {
       this.sergii.tintTarget = 0.28;
       this.hud.warn('Схоже, Сергій починає щось підозрювати.');
+      if (this.hearts < 3) {
+        this.hearts++;
+        this.time.delayedCall(1200, () => this.hud.toast('Колектив вірить у тебе: +1 ❤️', '#ff8a9a'));
+      }
     }
     if (lvl === 4) {
       this.sergii.tintTarget = 0.5;
@@ -907,6 +925,7 @@ export class GameScene extends Phaser.Scene {
     this.rageElapsed = 0;
     this.patience = this.def.rageAt;
     this.clearIncoming();
+    this.announceThen = null;
     this.bellyCooldown = 4;
     this.act = 'tantrum';
     this.actT = 1.6;
@@ -983,6 +1002,7 @@ export class GameScene extends Phaser.Scene {
 
   private finishState() {
     this.state = 'end';
+    this.announceThen = null;
     this.lane = 0;
     this.clearIncoming();
     this.plans.length = 0;
@@ -1139,9 +1159,16 @@ export class GameScene extends Phaser.Scene {
 
   // ================================================================== Sergii AI
   private say(text: string, force = false) {
-    if (!force && this.speech.cooldown > 0) return;
-    this.speech.say(text);
+    if (!force && (this.speech.cooldown > 0 || this.speech.busy)) return;
+    const special = isSignature(text);
+    this.speech.say(text, special);
     this.speech.cooldown = 6.5;
+    // the team's catchphrases get a beat of slow motion so they land
+    if (special && this.state === 'play' && this.simTime - this.lastSpotlight > 7) {
+      this.lastSpotlight = this.simTime;
+      this.slowmo(0.6, 0.9);
+      audio.duckMusic(0.35, 1.3);
+    }
   }
 
   private get pFactor() {
@@ -1170,7 +1197,7 @@ export class GameScene extends Phaser.Scene {
     const dodgeP = this.def.dodge * this.tune.dodge * (1 + this.pFactor * 0.8) * (this.rage ? 1.2 : 1) * (p.npc ? 0.5 : 1);
     if (this.dodgeCD <= 0 && chance(dodgeP)) {
       this.plans.push({ t: Math.max(0.03, p.T - rand(0.26, 0.34)), type: 'dodge', proj: p });
-      this.dodgeCD = Math.max(0.7, 1.4 - this.def.id * 0.12);
+      this.dodgeCD = Math.max(1.2, 2.0 - this.def.id * 0.12);
     }
   }
 
@@ -1248,7 +1275,7 @@ export class GameScene extends Phaser.Scene {
     s.heldKind = kind;
     s.held.setTexture('it_' + kind).setVisible(true).setScale(0.3);
     this.act = 'catchHold';
-    this.actT = 0.45;
+    this.actT = 0.85;
     this.stats.catches++;
     s.smileFor(2.2);
     this.breakCombo();
@@ -1318,7 +1345,7 @@ export class GameScene extends Phaser.Scene {
     s.lean.kick(-0.6);
     this.spawnIncoming(kind, this.atkLane, from);
     this.act = 'recover';
-    this.actT = 0.32;
+    this.actT = 0.5;
     audio.whoosh(1.3);
     if (chance(0.3)) this.say(pick(LINES.throw));
   }
@@ -1447,10 +1474,10 @@ export class GameScene extends Phaser.Scene {
   private nextAttackDelay() {
     const [a, b] = this.def.attackEvery;
     let d = rand(a, b) * this.tune.atk;
-    if (this.rage) d *= 0.72;
-    if (this.rushT > 0) d *= 0.7;
-    d *= 1 - this.pFactor * 0.2;
-    return Math.max(1.6, d);
+    if (this.rage) d *= 0.8;
+    if (this.rushT > 0) d *= 0.85;
+    d *= 1 - this.pFactor * 0.15;
+    return Math.max(2.6, d);
   }
 
   private pickBack(): ItemKind {
@@ -1467,9 +1494,9 @@ export class GameScene extends Phaser.Scene {
   private startBellyPower() {
     const s = this.sergii;
     this.act = 'bellyWindup';
-    this.actT = save.difficulty === 'easy' ? 1.9 : 1.55;
+    this.actT = save.difficulty === 'easy' ? 2.1 : 1.8;
     this.bellyLane = this.lane;
-    this.bellyCooldown = rand(16, 21);
+    this.bellyCooldown = rand(20, 26);
     this.attackT = Math.max(this.attackT, 2.5);
     s.vx = 0;
     s.armR.target = -1.5;
@@ -1568,11 +1595,13 @@ export class GameScene extends Phaser.Scene {
     if (ev === 'phone') return this.phoneCall();
     if (ev === 'tech') {
       this.hud.eventBanner(EVENTS.tech);
-      this.say(LINES.tech, true);
-      this.startAttack('wrench', this.teleTime() + 0.35);
+      s.setHeld('wrench');
+      this.announce(0.5, 1.5, LINES.tech, () => this.startAttack('wrench', this.teleTime() + 0.2));
       return;
     }
     if (ev === 'fridge') return this.fridgeAttack();
+    // the calm events never land right on top of an attack
+    this.attackT = Math.max(this.attackT, 3);
     if (ev === 'can') {
       this.hud.eventBanner(EVENTS.can);
       this.say(LINES.back, true);
@@ -1588,15 +1617,32 @@ export class GameScene extends Phaser.Scene {
       audio.clang();
     } else if (ev === 'rush') {
       this.hud.eventBanner(EVENTS.rush);
-      this.rushT = 5;
+      this.rushT = 4;
       audio.setRush(true);
       audio.whistle();
-      this.attackT = Math.min(this.attackT, 1.2);
+      this.attackT = Math.min(this.attackT, 2);
     } else {
       this.hud.eventBanner(EVENTS.shoe);
-      this.time.delayedCall(350, () => this.say(LINES.shoe, true));
-      this.startAttack('slipper', this.teleTime() + 0.2);
+      s.setHeld('slipper');
+      this.announce(0.5, 1.4, LINES.shoe, () => this.startAttack('slipper', this.teleTime() + 0.1));
     }
+  }
+
+  /**
+   * Event pacing: the ribbon shows first, Sergii says his line a moment later,
+   * and only once it had time to be read does the attack wind-up begin.
+   */
+  private announce(lineDelay: number, hold: number, line: string, then: () => void) {
+    const s = this.sergii;
+    this.act = 'announce';
+    this.actT = lineDelay + hold;
+    this.announceThen = then;
+    s.vx = 0;
+    s.lean.target = 0;
+    this.attackT = Math.max(this.attackT, this.actT + 2.5);
+    this.time.delayedCall(lineDelay * 1000, () => {
+      if (this.act === 'announce' && this.state === 'play') this.say(line, true);
+    });
   }
 
   /** «РОЗВОЗКА ПРИЇХАЛА»: a delivery van drives past and restocks the player. */
@@ -1604,6 +1650,7 @@ export class GameScene extends Phaser.Scene {
     const st = this.stage;
     this.hud.eventBanner(EVENTS.van);
     audio.honk();
+    this.attackT = Math.max(this.attackT, 4);
     // drives along the fence, visible beside Sergii's head
     const y = st.hy + 30;
     const van = this.add.image(-320, y, 'van').setDepth(6.5).setScale(0.6 / (L.TS * 0.8));
@@ -1641,8 +1688,10 @@ export class GameScene extends Phaser.Scene {
     this.hud.eventBanner(EVENTS.phone);
     audio.ring();
     this.act = 'phone';
-    this.actT = 4.6;
+    this.actT = 5.6;
     this.phoneLine = 0;
+    this.phoneBonusShown = false;
+    this.attackT = Math.max(this.attackT, 8);
     s.vx = 0;
     s.setPhone(true);
     this.time.delayedCall(700, () => {
@@ -1653,14 +1702,15 @@ export class GameScene extends Phaser.Scene {
   /** «ХОЛОДИЛЬНИК!»: two-handed overhead fridge throw with a long, fair telegraph. */
   private fridgeAttack() {
     this.hud.eventBanner(EVENTS.fridge);
-    this.say(LINES.fridge, true);
-    this.startAttack('fridge', this.teleTime() + 0.6);
+    // he eyes the fridge first, then lifts it
+    this.sergii.headRot.kick(-2);
+    this.announce(0.45, 1.5, LINES.fridge, () => this.startAttack('fridge', this.teleTime() + 0.5));
   }
 
   private updateAI(dt: number) {
     const s = this.sergii;
     const def = this.def;
-    const speedMul = this.tune.speed * (this.rushT > 0 ? 1.35 : 1) * (this.rage ? 1.25 : 1) * (1 + this.pFactor * 0.35);
+    const speedMul = this.tune.speed * (this.rushT > 0 ? 1.15 : 1) * (this.rage ? 1.15 : 1) * (1 + this.pFactor * 0.25);
     if (this.state === 'play' && this.moodLevel >= 2) this.bellyCooldown -= dt;
     this.dodgeCD -= dt;
     if (this.flinchT > 0) {
@@ -1706,7 +1756,7 @@ export class GameScene extends Phaser.Scene {
         }
         if (this.sidestepT > 0) {
           this.sidestepT -= dt;
-          moveMax = 900;
+          moveMax = 650;
         }
         if (this.state === 'play' && this.moodLevel >= 2 && this.bellyCooldown <= 0 && !s.shieldOn && !this.incoming.some((i) => i.active && !i.resolved)) {
           this.startBellyPower();
@@ -1725,7 +1775,7 @@ export class GameScene extends Phaser.Scene {
         if (def.events && !this.rage && this.state === 'play' && !s.shieldOn) {
           this.eventT -= dt;
           if (this.eventT <= 0) {
-            this.eventT = rand(16, 28);
+            this.eventT = rand(20, 32);
             this.triggerEvent();
           }
         }
@@ -1770,7 +1820,7 @@ export class GameScene extends Phaser.Scene {
           s.lean.target = 0;
           if (!s.shieldOn) s.armL.target = -0.12;
           if (this.atkCombo > 0 && this.state === 'play') {
-            this.startAttack(this.pickBack(), Math.max(0.6, this.teleTime() * 0.75), this.atkCombo - 1);
+            this.startAttack(this.pickBack(), Math.max(0.8, this.teleTime() * 0.9), this.atkCombo - 1);
           } else this.act = 'free';
         }
         break;
@@ -1793,12 +1843,12 @@ export class GameScene extends Phaser.Scene {
         s.headScale.target = 1.1;
         if (this.actT <= 0) {
           s.headScale.target = 1;
-          this.startAttack(s.heldKind ?? 'can', Math.max(0.65, this.teleTime() * 0.85));
+          this.startAttack(s.heldKind ?? 'can', this.teleTime());
         }
         break;
       }
       case 'offscreen': {
-        moveMax = 560;
+        moveMax = 420;
         if (Math.abs(s.x) > 640) {
           this.offT += dt;
           if (this.offT > 2) {
@@ -1810,7 +1860,7 @@ export class GameScene extends Phaser.Scene {
         break;
       }
       case 'returning': {
-        moveMax = 480;
+        moveMax = 380;
         if (Math.abs(s.x - this.targetX) < 12) this.startAttack('can', this.teleTime());
         break;
       }
@@ -1822,7 +1872,7 @@ export class GameScene extends Phaser.Scene {
           s.armL.target = -0.12;
           if (!this.rage) s.shake = this.moodLevel >= 4 ? 0.35 : 0;
           else s.shake = 0.6;
-          this.attackT = this.rage ? 0.8 : 2;
+          this.attackT = this.rage ? 1.6 : 2.5;
         } else {
           s.armR.target = -2.4 + Math.sin(this.simTime * 20) * 0.4;
           s.armL.target = 2.4 - Math.sin(this.simTime * 20 + 1) * 0.4;
@@ -1840,16 +1890,28 @@ export class GameScene extends Phaser.Scene {
         s.armL.target = 1.2;
         break;
       }
+      case 'announce': {
+        this.actT -= dt;
+        s.squash.target = 0.15;
+        if (this.actT <= 0) {
+          s.squash.target = 0;
+          const then = this.announceThen;
+          this.announceThen = null;
+          this.act = 'free';
+          if (then && this.state === 'play') then();
+        }
+        break;
+      }
       case 'phone': {
         this.actT -= dt;
         const ear = s.facePoint({ x: -250, y: -330 });
         s.armL.target = s.aimArm(-1, ear.x - 30, ear.y + 40, true);
         s.headRot.target = -0.12;
-        if (this.phoneLine === 0 && this.actT < 3.1) {
+        if (this.phoneLine === 0 && this.actT < 3.7) {
           this.phoneLine = 1;
           this.say(LINES.phone[1], true);
         }
-        if (this.phoneLine === 1 && this.actT < 0.9) {
+        if (this.phoneLine === 1 && this.actT < 1.3) {
           this.phoneLine = 2;
           this.say(LINES.phone[2], true);
         }
@@ -1896,7 +1958,7 @@ export class GameScene extends Phaser.Scene {
     if (this.crowd.count > 0 && this.act !== 'offscreen' && this.act !== 'returning') {
       this.crowdThrowT -= dt;
       if (this.crowdThrowT <= 0) {
-        this.crowdThrowT = rand(def.crowdEvery[0], def.crowdEvery[1]) * (this.rage ? 0.6 : 1) * (1.2 - Math.min(0.4, this.crowd.count * 0.06));
+        this.crowdThrowT = rand(def.crowdEvery[0], def.crowdEvery[1]) * (this.rage ? 0.75 : 1) * (1.2 - Math.min(0.3, this.crowd.count * 0.05));
         this.npcThrow();
       }
     }
@@ -1911,7 +1973,7 @@ export class GameScene extends Phaser.Scene {
     const X0 = st.wx(from.x, z0);
     const Y0 = st.wy(from.y, z0);
     const s = this.sergii;
-    const T = 0.62;
+    const T = 0.75;
     const ph = s.predictHead(T);
     const accurate = chance(0.8);
     const X1 = ph.x + (accurate ? rand(-50, 50) : rand(-220, 220));
@@ -1922,8 +1984,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   private slowmo(scale: number, dur: number) {
+    // never let a short, mild slow-down cut a stronger one short
+    if (this.slowT > 0 && this.slowTarget < scale) {
+      this.slowT = Math.max(this.slowT, dur);
+      return;
+    }
     this.slowTarget = scale;
-    this.slowT = dur;
+    this.slowT = Math.max(this.slowT, dur);
   }
 
   // ================================================================== frame
