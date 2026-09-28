@@ -42,6 +42,8 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,webp,png,jpg,woff2,svg}'], globIgnores: ['**/*.woff'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: 'index.html',
+        // the standalone art page in public/forest-spirit must never be answered with the game shell
+        navigateFallbackDenylist: [/\/forest-spirit(\/|$)/],
         cleanupOutdatedCaches: true,
       },
     }),
